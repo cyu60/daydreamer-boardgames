@@ -147,12 +147,33 @@ Everything else is feature creep until this works perfectly.
 
 ```
 daydreamer-boardgames/
-├── scraper/          # Go scraper for BGG
-├── backend/          # Go API
-├── frontend/         # React app
-├── logs/             # Development logs
-│   └── CLAUDE.md     # AI conversation log for tutorial
+├── boardgames-scraper/   # Go scraper for BGG (browser-use)
+├── backend/              # Go API (coming soon)
+├── frontend/             # React app (coming soon)
+├── logs/                 # Development logs
+│   └── CLAUDE.md         # AI conversation log for tutorial
 └── README.md
+```
+
+## Scraper Usage
+
+```bash
+cd boardgames-scraper
+
+# Copy env and add your Browser Use credentials
+cp .env.example .env
+
+# Build
+go build -o boardgames-scraper .
+
+# List games to scrape
+./boardgames-scraper list -i data/games_input.json
+
+# Run the scraper (requires BROWSER_USE_API_KEY)
+./boardgames-scraper scrape
+
+# View scraped results
+./boardgames-scraper list -o data/games_output.json
 ```
 
 ## Development Log

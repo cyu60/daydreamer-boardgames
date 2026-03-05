@@ -33,3 +33,10 @@ logs/*.log
 *.dylib
 *.test
 *.out
+
+# Go binaries (built executables)
+boardgames-scraper/boardgames-scraper
+boardgames-scraper/scraper
+
+# Reference files (not part of codebase)
+daydreamers-slides*.html

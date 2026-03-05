@@ -1,13 +1,15 @@
 # Daydreamer Board Games
 
+![DayDreamers Board Games](header-banner.png)
+
 A web app to track your board game collection, log play sessions, and coordinate game nights with friends.
 
 ## Tech Stack
 
-- **Scraper**: Go (browser-use for BoardGameGeek)
-- **Backend**: Go API
-- **Frontend**: React
+- **Scraper**: Go CLI (browser-use for BoardGameGeek)
+- **App**: Next.js (full-stack)
 - **Database**: Supabase (Postgres)
+- **Deployment**: Vercel
 
 ## Product Requirements Document (PRD)
 
@@ -19,43 +21,59 @@ Board game enthusiasts struggle to:
 - Coordinate game nights with friends
 - Track who played what and how well they did
 
-### Core Features (MVP)
+### Must-Have Features (MVP)
 
 #### 1. Board Game Collection
 - View all board games in your collection
 - See game details (name, player count, play time, complexity)
 - Track when each game was last played
 
-#### 2. "Tonight's Picks" Pinboard
+#### 2. "Tonight's Picks" with Voting
 - Pin games you want to play tonight
-- Friends can see what's on the table
-- Easy way to vote or express interest
+- **Vote on which games to play** - everyone can cast votes
+- See which games have the most votes
+- Friends can see what's on the table via shared link
 
-#### 3. Play Session Logging
+#### 3. Play Session Logging & Score Tracking
 - Log when you play a game
 - Record who played and scores/rankings
+- **Track who's winning/losing** across all sessions
+- Player win/loss statistics and leaderboards
 - Build a history of plays over time
 
 ### Nice-to-Have Features (Post-MVP)
 
+- **Add Custom Games**
+  - Take a photo of a board game box
+  - Or type in the game name
+  - Triggers browser-use scraping from BGG
+  - Uses LLM (OpenAI) to understand images and extract game info
 - Calendar view of upcoming game nights
 - Friend sharing via link (no auth required to view)
-- Player statistics and leaderboards
 - Game recommendations based on play history
 
 ### Technical Architecture
 
 ```
-┌─────────────┐     ┌─────────────┐     ┌─────────────┐
-│   React     │────▶│   Go API    │────▶│  Supabase   │
-│  Frontend   │     │   Backend   │     │  (Postgres) │
-└─────────────┘     └─────────────┘     └─────────────┘
-        ▲
-        │
-┌───────┴───────┐
-│  Go Scraper   │──── BoardGameGeek
-│ (browser-use) │
-└───────────────┘
+┌──────────────────────────────────────┐
+│           Next.js App                │
+│  ┌────────────┐  ┌────────────────┐  │
+│  │   Pages/   │  │  API Routes    │  │
+│  │   React    │  │  (server)      │  │
+│  └────────────┘  └───────┬────────┘  │
+└──────────────────────────┼───────────┘
+                           │
+                    ┌──────▼──────┐
+                    │  Supabase   │
+                    │  (Postgres) │
+                    └─────────────┘
+                           ▲
+                           │ seed
+┌──────────────────────────┴───────────┐
+│  Go Scraper (browser-use)            │
+│  → Scrapes BoardGameGeek             │
+│  → Outputs JSON for DB seeding       │
+└──────────────────────────────────────┘
 ```
 
 ### Data Models
@@ -117,20 +135,16 @@ Board game enthusiasts struggle to:
 - [ ] Create database schema
 - [ ] Seed with scraped data
 
-**Phase 3: Backend API**
-- [ ] Go API with CRUD for games
-- [ ] Play session endpoints
-- [ ] Tonight's picks endpoints
-
-**Phase 4: Frontend**
-- [ ] React app setup
+**Phase 3: Next.js App**
+- [ ] Create Next.js project
+- [ ] Connect to Supabase
 - [ ] Game collection view (list/grid)
 - [ ] Game detail page
 - [ ] Play logging UI
 - [ ] Tonight's picks UI
 
-**Phase 5: Deploy**
-- [ ] Deploy frontend (Vercel?)
+**Phase 4: Deploy**
+- [ ] Deploy to Vercel
 - [ ] Connect to Supabase production
 
 ### MVP Scope Reminder
@@ -148,8 +162,7 @@ Everything else is feature creep until this works perfectly.
 ```
 daydreamer-boardgames/
 ├── boardgames-scraper/   # Go scraper for BGG (browser-use)
-├── backend/              # Go API (coming soon)
-├── frontend/             # React app (coming soon)
+├── app/                  # Next.js app (coming soon)
 ├── logs/                 # Development logs
 │   └── CLAUDE.md         # AI conversation log for tutorial
 └── README.md

@@ -1,0 +1,74 @@
+@import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&display=swap');
+
+:root {
+  /* DayDreamers Design Tokens */
+  --ink: #0a0a0f;
+  --paper: #f5f2ed;
+  --cream: #e8e3da;
+  --rule: #d0c9be;
+  --dust: #9a9088;
+  --cobalt: #1c3fdc;
+  --cobalt-lt: #4a6aff;
+  --cobalt-dim: #e8ecff;
+  --amber: #d97706;
+  --amber-dim: #fff3dc;
+  --green: #16a34a;
+  --green-dim: #dcfce7;
+  --card: #ffffff;
+
+  --serif: 'DM Serif Display', Georgia, serif;
+  --sans: 'DM Sans', system-ui, sans-serif;
+  --mono: 'DM Mono', 'Courier New', monospace;
+}
+
+@theme inline {
+  --color-ink: var(--ink);
+  --color-paper: var(--paper);
+  --color-cream: var(--cream);
+  --color-rule: var(--rule);
+  --color-dust: var(--dust);
+  --color-cobalt: var(--cobalt);
+  --color-cobalt-lt: var(--cobalt-lt);
+  --color-cobalt-dim: var(--cobalt-dim);
+  --color-amber: var(--amber);
+  --color-amber-dim: var(--amber-dim);
+  --color-green: var(--green);
+  --color-green-dim: var(--green-dim);
+  --color-card: var(--card);
+  --font-serif: var(--serif);
+  --font-sans: var(--sans);
+  --font-mono: var(--mono);
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  font-family: var(--sans);
+  background: var(--paper);
+  color: var(--ink);
+}
+
+/* Moon Glow SVG Filter - works on dark backgrounds */
+.logo {
+  animation: float 4s ease-in-out infinite;
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+
+/* Header ambient glow background */
+.header-glow {
+  background:
+    radial-gradient(ellipse 80% 80% at 30% 40%, rgba(28, 63, 220, 0.4) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 60% at 70% 60%, rgba(74, 106, 255, 0.25) 0%, transparent 55%),
+    radial-gradient(ellipse 50% 40% at 80% 20%, rgba(217, 119, 6, 0.15) 0%, transparent 50%);
+}

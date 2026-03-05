@@ -17,11 +17,11 @@ Building a board game tracking app called "Daydreamer Board Games" for a worksho
 2. **Tonight's Picks** - Pin games you want to play, friends can see
 3. **Play Session Logging** - Record who played, scores, history
 
-### Tech Stack Decisions
-- **Scraper**: Go (using browser-use pattern for BoardGameGeek)
-- **Frontend**: React
-- **Backend**: Go API
+### Tech Stack Decisions (Updated in Session 4)
+- **Scraper**: Go CLI (using browser-use pattern for BoardGameGeek)
+- **App**: Next.js (full-stack)
 - **Database**: Supabase (Postgres)
+- **Deployment**: Vercel
 
 ### Data to Scrape from BoardGameGeek
 - Name
@@ -160,6 +160,171 @@ frontend/
 
 ### Files Added to .gitignore
 - `daydreamers-slides*.html` - Reference slides not part of codebase
+
+### Revision: Simplified to Mobile-First Design
+User feedback: original layout was too complicated. Revised to minimal mobile-first approach:
+
+**New Structure:**
+- Single column, max-width 480px (phone-sized)
+- 3 tab navigation: My Games, Tonight, History
+- Simple game list with add/remove buttons
+- Glowing moon logo with CSS animation
+
+**Key Changes:**
+- Removed 3-column layout, sidebars, complex grids
+- Simplified to list-based UI
+- Added CSS glow effect to moon logo (`filter: drop-shadow` + pulse animation)
+- Interactive tab switching with vanilla JS
+- Touch-friendly button sizes
+
+### Revision 2: Moon Logo Glow Effect (Matching Slides)
+User feedback: moon logo didn't look right, should match the slide deck presentation.
+
+**Analysis of Slide Deck Moon:**
+The slides use an SVG filter-based glow that only works well on dark backgrounds:
+```html
+<filter id="moonGlow">
+  <feGaussianBlur stdDeviation="8" result="blur1"/>
+  <feGaussianBlur stdDeviation="20" result="blur2"/>
+  <feMerge>
+    <feMergeNode in="blur2"/>
+    <feMergeNode in="blur1"/>
+    <feMergeNode in="SourceGraphic"/>
+  </feMerge>
+</filter>
+```
+- Two blur levels (8 and 20) merged together
+- White stroke on dark `--ink` background
+- Floating animation (`translateY` keyframes)
+
+**Design Solution:**
+- Dark header section (`background: var(--ink)`) for the moon to glow against
+- Ambient radial gradients in header (cobalt blue + subtle amber, like slides)
+- Light `--paper` background for tabs and content (readability)
+- Clean separation: dark brand area → light content area
+
+**Final Color Scheme:**
+- `html/body`: `--paper` (light, consistent)
+- `.header`: `--ink` (dark, for moon glow)
+- `.tabs` & `.content`: `--paper` (light)
+
+### Header Banner for README
+- Took screenshot of the header
+- Cropped top to remove rounded corners
+- Saved as `header-banner.png`
+- Added to README at the top
+
+---
+
+## Session 4 - Tech Stack Update & Scraper Run
+
+### Tech Stack Change
+**Old:** Go API + React frontend
+**New:** Next.js full-stack app + Supabase + Vercel deployment
+
+Rationale: Simpler architecture, everything in one codebase, easier to deploy and maintain. Good for workshop demo since everything is done from CLI.
+
+### Updated Architecture
+```
+Next.js App (Vercel)
+    ├── Pages/React (frontend)
+    └── API Routes (backend)
+           │
+           ▼
+       Supabase (Postgres)
+           ▲
+           │ seed
+    Go Scraper (browser-use)
+```
+
+### Games List Updated (13 games)
+Added 6 more games:
+1. Dominion
+2. Dominion: Intrigue
+3. Bang! The Bullet
+4. Catan
+5. King of Tokyo
+6. Wingspan
+7. Ascension Tactics
+8. Sushi Go Party! *(new)*
+9. Scout *(new)*
+10. Startups *(new)*
+11. Ito *(new)*
+12. For Sale *(new)*
+13. Salt & Pepper *(new)*
+
+### First Scraper Run
+- Copied `.env` from browser-use-exploration project
+- Ran `./boardgames-scraper scrape --live -v`
+- Live view available at browser-use.com for monitoring
+
+### Workshop Approach
+All work done from CLI - no browser/IDE required. This is key for the workshop demo to show how AI-assisted development works in practice.
+
+---
+
+---
+
+## Session 5 - Next.js App Setup & Feature Priorities
+
+### Scraper Status
+- Attempted to run scraper for 13 games
+- Scraper encountered "stopped" status - needs debugging
+- No output file generated yet
+
+### Next.js App Created
+Set up full Next.js app with:
+- TypeScript + Tailwind CSS
+- Supabase client integration
+- Database types generated
+
+**Files Created:**
+```
+app/
+├── src/
+│   ├── app/
+│   │   ├── layout.tsx      # Root layout
+│   │   ├── page.tsx        # Main app (tabs + views)
+│   │   └── globals.css     # DayDreamers design tokens
+│   ├── lib/
+│   │   └── supabase.ts     # Supabase client
+│   └── types/
+│       └── database.ts     # TypeScript types
+├── supabase/
+│   └── migrations/
+│       └── 001_initial_schema.sql  # Full DB schema
+└── .env.example            # Supabase credentials template
+```
+
+### Design System Integration
+Converted `frontend/` reference design to React components:
+- Moon logo with SVG glow filter
+- Header with ambient gradient background
+- 3 tabs: My Games, Tonight, History
+- Game list items with add/remove buttons
+- Selected games panel
+- History items with date badges
+- All DayDreamers design tokens (colors, fonts)
+
+### Feature Priorities Updated
+
+**Must-Have (MVP):**
+1. Board Game Collection - view games, track last played
+2. Tonight's Picks with **Voting** - vote on which games to play
+3. Play Session Logging with **Score Tracking** - track who's winning/losing
+
+**Nice-to-Have (Post-MVP):**
+1. **Add Custom Games** - photo/name → browser-use scraping → LLM extraction
+2. Calendar view
+3. Friend sharing
+4. Game recommendations
+
+### Next Steps
+- Debug and re-run scraper
+- Seed Supabase with scraped data
+- Deploy to Vercel
+- Add voting functionality
+- Add player statistics
 
 ---
 

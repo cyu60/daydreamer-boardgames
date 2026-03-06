@@ -10,11 +10,12 @@ A web app to track your board game collection, log play sessions, and coordinate
 
 ## The Problem
 
-Have you ever hosted a game night and spent 20 minutes debating what to play? Or forgotten which games you even own? Maybe you can't remember who won that epic Catan showdown last month, or you're trying to pick a game that works for 5 players but can't recall which ones fit.
+Have you ever hosted a game night and spent 20 minutes debating what to play? Or forgotten which games you even own? Maybe you can't remember who won that epic Catan showdown last month, or you're trying to pick a game that works for 5 players but can't recall which ones fit. And when someone suggests a new game, nobody wants to read through a 20-page rulebook.
 
 **Daydreamer Board Games** solves this by giving your game group a shared space to:
 - See everyone's collection at a glance
 - Vote on tonight's picks before people arrive
+- **Watch tutorial videos** to learn how to play any game in minutes
 - Track who played what and who won (bragging rights included)
 - Actually remember those legendary game nights
 
@@ -32,6 +33,7 @@ Built for the DayDreamers workshop crew who got tired of the "what should we pla
 ## Features
 
 - **Game Collection** - Browse your board games with search, images, and details
+- **Embedded Tutorials** - Watch YouTube how-to-play videos right in the app—no rulebook required
 - **Photo-to-Game** - Snap a photo of a game box to auto-add it (AI-powered)
 - **Tonight's Picks** - Pin games and vote on what to play with drag-and-drop ranking
 - **Session Management** - Host controls to start/end game nights

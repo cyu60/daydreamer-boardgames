@@ -65,8 +65,162 @@ function GripIcon() {
   );
 }
 
+// Close Icon
+function CloseIcon() {
+  return (
+    <svg viewBox="0 0 24 24" style={{ width: '18px', height: '18px', fill: 'currentColor' }}>
+      <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+    </svg>
+  );
+}
+
+// Extract YouTube video ID
+function getYouTubeVideoId(url: string): string | null {
+  const patterns = [
+    /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\n?#]+)/,
+  ];
+  for (const pattern of patterns) {
+    const match = url.match(pattern);
+    if (match) return match[1];
+  }
+  return null;
+}
+
+// Game Details Modal
+function GameDetailsModal({
+  game,
+  onClose
+}: {
+  game: Game;
+  onClose: () => void;
+}) {
+  const videoId = game.tutorial_url ? getYouTubeVideoId(game.tutorial_url) : null;
+
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        inset: 0,
+        background: 'rgba(10, 10, 15, 0.7)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 100,
+        padding: '1rem'
+      }}
+      onClick={onClose}
+    >
+      <div
+        style={{
+          background: 'var(--card)',
+          borderRadius: '20px',
+          maxWidth: '480px',
+          width: '100%',
+          maxHeight: '90vh',
+          overflow: 'auto',
+          padding: '1.5rem'
+        }}
+        onClick={e => e.stopPropagation()}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
+          <h2 style={{ fontFamily: 'var(--serif)', fontSize: '1.5rem', color: 'var(--ink)' }}>
+            {game.name}
+          </h2>
+          <button
+            onClick={onClose}
+            style={{
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              padding: '0.25rem',
+              color: 'var(--dust)'
+            }}
+          >
+            <CloseIcon />
+          </button>
+        </div>
+
+        {/* Game Image */}
+        {game.image_url && (
+          <img
+            src={game.image_url}
+            alt={game.name}
+            style={{
+              width: '100%',
+              maxHeight: '200px',
+              objectFit: 'cover',
+              borderRadius: '12px',
+              marginBottom: '1rem'
+            }}
+          />
+        )}
+
+        {/* YouTube Tutorial Embed */}
+        {videoId && (
+          <div style={{
+            position: 'relative',
+            paddingBottom: '56.25%',
+            height: 0,
+            marginBottom: '1rem',
+            borderRadius: '12px',
+            overflow: 'hidden'
+          }}>
+            <iframe
+              src={`https://www.youtube.com/embed/${videoId}`}
+              title={`${game.name} Tutorial`}
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: '100%',
+                height: '100%',
+                border: 'none'
+              }}
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
+            />
+          </div>
+        )}
+
+        <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
+          <div style={{ padding: '0.5rem 0.75rem', background: 'var(--cobalt-dim)', borderRadius: '8px' }}>
+            <span style={{ fontFamily: 'var(--mono)', fontSize: '0.75rem', color: 'var(--cobalt)' }}>
+              {game.min_players}-{game.max_players} players
+            </span>
+          </div>
+          <div style={{ padding: '0.5rem 0.75rem', background: 'var(--cobalt-dim)', borderRadius: '8px' }}>
+            <span style={{ fontFamily: 'var(--mono)', fontSize: '0.75rem', color: 'var(--cobalt)' }}>
+              {game.play_time_minutes} min
+            </span>
+          </div>
+          {game.rating && (
+            <div style={{ padding: '0.5rem 0.75rem', background: 'var(--amber-dim)', borderRadius: '8px' }}>
+              <span style={{ fontFamily: 'var(--mono)', fontSize: '0.75rem', color: 'var(--amber)' }}>
+                ★ {game.rating}
+              </span>
+            </div>
+          )}
+          {game.year_published && (
+            <div style={{ padding: '0.5rem 0.75rem', background: 'var(--cream)', borderRadius: '8px' }}>
+              <span style={{ fontFamily: 'var(--mono)', fontSize: '0.75rem', color: 'var(--dust)' }}>
+                {game.year_published}
+              </span>
+            </div>
+          )}
+        </div>
+
+        {game.description && (
+          <p style={{ fontSize: '0.9rem', lineHeight: 1.6, color: 'var(--ink)', marginBottom: '1rem' }}>
+            {game.description}
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // Sortable game item component
-function SortableGameItem({ game, rank }: { game: Game; rank: number }) {
+function SortableGameItem({ game, rank, onViewDetails }: { game: Game; rank: number; onViewDetails: () => void }) {
   const {
     attributes,
     listeners,
@@ -93,42 +247,47 @@ function SortableGameItem({ game, rank }: { game: Game; rank: number }) {
         <GripIcon />
       </div>
       <div className="rank-badge">{rank}</div>
-      {game.image_url ? (
-        <img
-          src={game.image_url}
-          alt={game.name}
-          style={{ width: '48px', height: '48px', borderRadius: '8px', objectFit: 'cover' }}
-        />
-      ) : (
-        <div style={{
-          width: '48px',
-          height: '48px',
-          borderRadius: '8px',
-          background: 'var(--cream)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          color: 'var(--dust)',
-          fontSize: '0.6rem'
-        }}>
-          No img
+      <div
+        style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flex: 1, cursor: 'pointer' }}
+        onClick={onViewDetails}
+      >
+        {game.image_url ? (
+          <img
+            src={game.image_url}
+            alt={game.name}
+            style={{ width: '48px', height: '48px', borderRadius: '8px', objectFit: 'cover' }}
+          />
+        ) : (
+          <div style={{
+            width: '48px',
+            height: '48px',
+            borderRadius: '8px',
+            background: 'var(--cream)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: 'var(--dust)',
+            fontSize: '0.6rem'
+          }}>
+            No img
+          </div>
+        )}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <h3 style={{
+            fontFamily: 'var(--serif)',
+            fontSize: '0.95rem',
+            color: 'var(--ink)',
+            marginBottom: '0.1rem',
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis'
+          }}>
+            {game.name}
+          </h3>
+          <span style={{ fontFamily: 'var(--mono)', fontSize: '0.7rem', color: 'var(--dust)' }}>
+            {game.min_players}-{game.max_players} players
+          </span>
         </div>
-      )}
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <h3 style={{
-          fontFamily: 'var(--serif)',
-          fontSize: '0.95rem',
-          color: 'var(--ink)',
-          marginBottom: '0.1rem',
-          whiteSpace: 'nowrap',
-          overflow: 'hidden',
-          textOverflow: 'ellipsis'
-        }}>
-          {game.name}
-        </h3>
-        <span style={{ fontFamily: 'var(--mono)', fontSize: '0.7rem', color: 'var(--dust)' }}>
-          {game.min_players}-{game.max_players} players
-        </span>
       </div>
     </div>
   );
@@ -168,6 +327,9 @@ export default function SessionPage() {
   const [coopWon, setCoopWon] = useState<boolean | null>(null);
   const [players, setPlayers] = useState<PlayerInput[]>([{ name: '', isWinner: false }]);
   const [savingResult, setSavingResult] = useState(false);
+
+  // Game details modal state
+  const [viewingGame, setViewingGame] = useState<Game | null>(null);
 
   // Configure DnD sensors with more responsive settings
   const sensors = useSensors(
@@ -545,18 +707,33 @@ export default function SessionPage() {
               Hosted by {session.host_name}
             </span>
           </div>
-          <span style={{
-            padding: '0.35rem 0.75rem',
-            background: session.status === 'voting' ? 'var(--cobalt)' :
-                       session.status === 'playing' ? 'var(--amber)' : 'var(--green)',
-            color: '#fff',
-            borderRadius: '20px',
-            fontSize: '0.75rem',
-            fontWeight: 600,
-            textTransform: 'uppercase'
-          }}>
-            {session.status}
-          </span>
+          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+            {isHost && (
+              <span style={{
+                padding: '0.35rem 0.75rem',
+                background: 'var(--ink)',
+                color: '#fff',
+                borderRadius: '20px',
+                fontSize: '0.7rem',
+                fontWeight: 600,
+                textTransform: 'uppercase'
+              }}>
+                Host
+              </span>
+            )}
+            <span style={{
+              padding: '0.35rem 0.75rem',
+              background: session.status === 'voting' ? 'var(--cobalt)' :
+                         session.status === 'playing' ? 'var(--amber)' : 'var(--green)',
+              color: '#fff',
+              borderRadius: '20px',
+              fontSize: '0.75rem',
+              fontWeight: 600,
+              textTransform: 'uppercase'
+            }}>
+              {session.status}
+            </span>
+          </div>
         </div>
       </div>
 
@@ -631,7 +808,12 @@ export default function SessionPage() {
                   >
                     <div className="games-list">
                       {rankedGames.map((game, index) => (
-                        <SortableGameItem key={game.id} game={game} rank={index + 1} />
+                        <SortableGameItem
+                          key={game.id}
+                          game={game}
+                          rank={index + 1}
+                          onViewDetails={() => setViewingGame(game)}
+                        />
                       ))}
                     </div>
                   </SortableContext>
@@ -658,74 +840,21 @@ export default function SessionPage() {
                   {savingRanking ? 'Saving...' : hasRankingChanges ? 'Save My Ranking' : 'Ranking Saved'}
                 </button>
 
-                {/* Vote Summary - shows after saving or if others have voted */}
-                {uniqueVoters.length > 0 && (
-                  <div className="vote-summary" style={{ marginTop: '1.5rem' }}>
-                    <h3 style={{
-                      fontFamily: 'var(--mono)',
-                      fontSize: '0.8rem',
-                      color: 'var(--dust)',
-                      marginBottom: '0.75rem',
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.02em'
-                    }}>
-                      Current Rankings ({uniqueVoters.length} voter{uniqueVoters.length !== 1 ? 's' : ''})
-                    </h3>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '1rem' }}>
-                      {uniqueVoters.map((voter) => (
-                        <span key={voter} style={{
-                          padding: '0.25rem 0.6rem',
-                          background: 'var(--cream)',
-                          borderRadius: '12px',
-                          fontSize: '0.75rem',
-                          color: 'var(--ink)'
-                        }}>
-                          {voter}
-                        </span>
-                      ))}
-                    </div>
-                    <div className="games-list">
-                      {rankedByVotes.map((game, index) => {
-                        const scores = gameRankingScores[game.id];
-                        if (!scores) return null;
-                        return (
-                          <div key={game.id} style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '0.75rem',
-                            padding: '0.6rem 0.75rem',
-                            background: index === 0 ? 'var(--amber-dim)' : 'var(--card)',
-                            border: '1px solid var(--rule)',
-                            borderRadius: '10px',
-                          }}>
-                            <span style={{
-                              width: '24px',
-                              height: '24px',
-                              background: index === 0 ? 'var(--amber)' : 'var(--dust)',
-                              color: '#fff',
-                              borderRadius: '50%',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              fontSize: '0.75rem',
-                              fontWeight: 600
-                            }}>
-                              {index + 1}
-                            </span>
-                            <span style={{ flex: 1, fontFamily: 'var(--serif)', fontSize: '0.9rem' }}>
-                              {game.name}
-                            </span>
-                            <span style={{
-                              fontFamily: 'var(--mono)',
-                              fontSize: '0.75rem',
-                              color: 'var(--dust)'
-                            }}>
-                              avg #{scores.avgRank.toFixed(1)}
-                            </span>
-                          </div>
-                        );
-                      })}
-                    </div>
+                {/* Message for non-hosts after voting */}
+                {!isHost && !hasRankingChanges && votes.some(v => v.voter_name.toLowerCase() === voterName.trim().toLowerCase()) && (
+                  <div style={{
+                    marginTop: '1.5rem',
+                    padding: '1rem',
+                    background: 'var(--green-dim)',
+                    borderRadius: '10px',
+                    textAlign: 'center'
+                  }}>
+                    <p style={{ fontFamily: 'var(--serif)', fontSize: '1rem', color: 'var(--ink)', marginBottom: '0.5rem' }}>
+                      Your ranking has been saved!
+                    </p>
+                    <p style={{ fontFamily: 'var(--mono)', fontSize: '0.8rem', color: 'var(--dust)' }}>
+                      The host will reveal the group&apos;s rankings when voting ends.
+                    </p>
                   </div>
                 )}
               </>
@@ -737,7 +866,12 @@ export default function SessionPage() {
                   const voters = getVotersForGame(game.id);
 
                   return (
-                    <div key={game.id} className="game-item" style={{ flexDirection: 'column', alignItems: 'stretch', gap: '0.5rem' }}>
+                    <div
+                      key={game.id}
+                      className="game-item"
+                      style={{ flexDirection: 'column', alignItems: 'stretch', gap: '0.5rem', cursor: 'pointer' }}
+                      onClick={() => setViewingGame(game)}
+                    >
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
                         {game.image_url ? (
                           <img src={game.image_url} alt={game.name} style={{ width: '56px', height: '56px', borderRadius: '10px', objectFit: 'cover' }} />
@@ -754,16 +888,18 @@ export default function SessionPage() {
                             {game.min_players}-{game.max_players} players · {game.play_time_minutes} min
                           </span>
                         </div>
-                        <span style={{
-                          fontFamily: 'var(--mono)',
-                          fontSize: '0.9rem',
-                          fontWeight: 600,
-                          color: voteCount > 0 ? 'var(--cobalt)' : 'var(--dust)'
-                        }}>
-                          {voteCount} vote{voteCount !== 1 ? 's' : ''}
-                        </span>
+                        {isHost && (
+                          <span style={{
+                            fontFamily: 'var(--mono)',
+                            fontSize: '0.9rem',
+                            fontWeight: 600,
+                            color: voteCount > 0 ? 'var(--cobalt)' : 'var(--dust)'
+                          }}>
+                            {voteCount} vote{voteCount !== 1 ? 's' : ''}
+                          </span>
+                        )}
                       </div>
-                      {voters.length > 0 && (
+                      {isHost && voters.length > 0 && (
                         <div style={{ paddingLeft: '71px', fontSize: '0.75rem', color: 'var(--dust)' }}>
                           Votes: {voters.join(', ')}
                         </div>
@@ -771,6 +907,109 @@ export default function SessionPage() {
                     </div>
                   );
                 })}
+              </div>
+            )}
+
+            {/* Vote Summary - always visible to host */}
+            {isHost && uniqueVoters.length > 0 && (
+              <div className="vote-summary" style={{ marginTop: '1.5rem' }}>
+                <h3 style={{
+                  fontFamily: 'var(--mono)',
+                  fontSize: '0.8rem',
+                  color: 'var(--dust)',
+                  marginBottom: '0.75rem',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.02em'
+                }}>
+                  Current Rankings ({uniqueVoters.length} voter{uniqueVoters.length !== 1 ? 's' : ''})
+                </h3>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '1rem' }}>
+                  {uniqueVoters.map((voter) => (
+                    <span key={voter} style={{
+                      padding: '0.25rem 0.6rem',
+                      background: 'var(--cream)',
+                      borderRadius: '12px',
+                      fontSize: '0.75rem',
+                      color: 'var(--ink)'
+                    }}>
+                      {voter}
+                    </span>
+                  ))}
+                </div>
+                <div className="games-list">
+                  {rankedByVotes.map((game, index) => {
+                    const scores = gameRankingScores[game.id];
+                    if (!scores) return null;
+                    const gameVotes = votes.filter(v => v.game_id === game.id);
+                    return (
+                      <div key={game.id} style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '0.5rem',
+                        padding: '0.75rem',
+                        background: index === 0 ? 'var(--amber-dim)' : 'var(--card)',
+                        border: '1px solid var(--rule)',
+                        borderRadius: '10px',
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                          <span style={{
+                            width: '28px',
+                            height: '28px',
+                            background: index === 0 ? 'var(--amber)' : index === 1 ? 'var(--cobalt)' : 'var(--dust)',
+                            color: '#fff',
+                            borderRadius: '50%',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: '0.85rem',
+                            fontWeight: 700
+                          }}>
+                            {index + 1}
+                          </span>
+                          <span style={{ flex: 1, fontFamily: 'var(--serif)', fontSize: '1rem', fontWeight: 500 }}>
+                            {game.name}
+                          </span>
+                          <div style={{ textAlign: 'right' }}>
+                            <div style={{
+                              fontFamily: 'var(--mono)',
+                              fontSize: '0.9rem',
+                              fontWeight: 600,
+                              color: index === 0 ? 'var(--amber)' : 'var(--ink)'
+                            }}>
+                              Score: {scores.totalRank}
+                            </div>
+                            <div style={{
+                              fontFamily: 'var(--mono)',
+                              fontSize: '0.7rem',
+                              color: 'var(--dust)'
+                            }}>
+                              avg #{scores.avgRank.toFixed(1)}
+                            </div>
+                          </div>
+                        </div>
+                        <div style={{
+                          display: 'flex',
+                          flexWrap: 'wrap',
+                          gap: '0.4rem',
+                          paddingLeft: '2.5rem'
+                        }}>
+                          {gameVotes.map((vote) => (
+                            <span key={vote.voter_name} style={{
+                              padding: '0.2rem 0.5rem',
+                              background: vote.rank === 1 ? 'var(--green)' : 'var(--cream)',
+                              color: vote.rank === 1 ? '#fff' : 'var(--ink)',
+                              borderRadius: '10px',
+                              fontSize: '0.7rem',
+                              fontFamily: 'var(--mono)'
+                            }}>
+                              {vote.voter_name}: #{vote.rank}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             )}
           </>
@@ -791,43 +1030,63 @@ export default function SessionPage() {
                 <div className="games-list">
                   {gameResults.map((result) => {
                     const game = session.games.find((g) => g.id === result.game_id);
-                    const winner = result.players.find((p) => p.is_winner);
+                    const winners = result.players.filter((p) => p.is_winner);
                     return (
-                      <div key={result.id} className="game-item">
-                        <div style={{
-                          width: '48px',
-                          height: '48px',
-                          background: 'var(--green-dim)',
-                          borderRadius: '10px',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          fontSize: '1.5rem'
-                        }}>
-                          🎲
-                        </div>
-                        <div style={{ flex: 1 }}>
-                          <h3 style={{ fontFamily: 'var(--serif)', fontSize: '1rem', color: 'var(--ink)' }}>
-                            {game?.name || 'Unknown Game'}
-                          </h3>
-                          <span style={{ fontFamily: 'var(--mono)', fontSize: '0.75rem', color: 'var(--dust)' }}>
-                            {result.players.map((p) => p.player_name).join(', ') || 'No players logged'}
-                          </span>
-                        </div>
-                        {winner && (
-                          <span style={{ fontFamily: 'var(--mono)', fontSize: '0.8rem', color: 'var(--amber)', fontWeight: 500 }}>
-                            {winner.player_name} won!
-                          </span>
-                        )}
-                        {result.is_coop && (
-                          <span style={{
-                            fontFamily: 'var(--mono)',
-                            fontSize: '0.8rem',
-                            color: result.coop_won ? 'var(--green)' : 'var(--dust)',
-                            fontWeight: 500
+                      <div key={result.id} className="game-item" style={{ flexDirection: 'column', alignItems: 'stretch', gap: '0.5rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                          <div style={{
+                            width: '48px',
+                            height: '48px',
+                            background: 'var(--green-dim)',
+                            borderRadius: '10px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: '1.5rem',
+                            flexShrink: 0
                           }}>
-                            {result.coop_won ? 'Team Won!' : 'Team Lost'}
-                          </span>
+                            🎲
+                          </div>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <h3 style={{ fontFamily: 'var(--serif)', fontSize: '1rem', color: 'var(--ink)' }}>
+                              {game?.name || 'Unknown Game'}
+                            </h3>
+                            {result.is_coop ? (
+                              <span style={{
+                                fontFamily: 'var(--mono)',
+                                fontSize: '0.8rem',
+                                color: result.coop_won ? 'var(--green)' : 'var(--dust)',
+                                fontWeight: 500
+                              }}>
+                                {result.coop_won ? 'Team Won!' : 'Team Lost'}
+                              </span>
+                            ) : winners.length > 0 ? (
+                              <span style={{ fontFamily: 'var(--mono)', fontSize: '0.8rem', color: 'var(--amber)', fontWeight: 500 }}>
+                                {winners.length === 1 ? `${winners[0].player_name} won!` : `${winners.map(w => w.player_name).join(' & ')} won!`}
+                              </span>
+                            ) : (
+                              <span style={{ fontFamily: 'var(--mono)', fontSize: '0.75rem', color: 'var(--dust)' }}>
+                                No winner recorded
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        {result.players.length > 0 && (
+                          <div style={{ paddingLeft: '60px', display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
+                            {result.players.map((p) => (
+                              <span key={p.id} style={{
+                                padding: '0.2rem 0.5rem',
+                                background: p.is_winner ? 'var(--amber-dim)' : 'var(--cream)',
+                                color: p.is_winner ? 'var(--amber)' : 'var(--dust)',
+                                borderRadius: '10px',
+                                fontSize: '0.7rem',
+                                fontFamily: 'var(--mono)',
+                                fontWeight: p.is_winner ? 600 : 400
+                              }}>
+                                {p.player_name}{p.is_winner ? ' 🏆' : ''}
+                              </span>
+                            ))}
+                          </div>
                         )}
                       </div>
                     );
@@ -948,43 +1207,63 @@ export default function SessionPage() {
               <div className="games-list">
                 {gameResults.map((result) => {
                   const game = session.games.find((g) => g.id === result.game_id);
-                  const winner = result.players.find((p) => p.is_winner);
+                  const winners = result.players.filter((p) => p.is_winner);
                   return (
-                    <div key={result.id} className="game-item">
-                      <div style={{
-                        width: '48px',
-                        height: '48px',
-                        background: 'var(--green-dim)',
-                        borderRadius: '10px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontSize: '1.5rem'
-                      }}>
-                        🎲
-                      </div>
-                      <div style={{ flex: 1 }}>
-                        <h3 style={{ fontFamily: 'var(--serif)', fontSize: '1rem', color: 'var(--ink)' }}>
-                          {game?.name || 'Unknown Game'}
-                        </h3>
-                        <span style={{ fontFamily: 'var(--mono)', fontSize: '0.75rem', color: 'var(--dust)' }}>
-                          {result.players.map((p) => p.player_name).join(', ')}
-                        </span>
-                      </div>
-                      {winner && (
-                        <span style={{ fontFamily: 'var(--mono)', fontSize: '0.8rem', color: 'var(--amber)', fontWeight: 500 }}>
-                          {winner.player_name} won!
-                        </span>
-                      )}
-                      {result.is_coop && (
-                        <span style={{
-                          fontFamily: 'var(--mono)',
-                          fontSize: '0.8rem',
-                          color: result.coop_won ? 'var(--green)' : 'var(--dust)',
-                          fontWeight: 500
+                    <div key={result.id} className="game-item" style={{ flexDirection: 'column', alignItems: 'stretch', gap: '0.5rem' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                        <div style={{
+                          width: '48px',
+                          height: '48px',
+                          background: 'var(--green-dim)',
+                          borderRadius: '10px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: '1.5rem',
+                          flexShrink: 0
                         }}>
-                          {result.coop_won ? 'Team Won!' : 'Team Lost'}
-                        </span>
+                          🎲
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <h3 style={{ fontFamily: 'var(--serif)', fontSize: '1rem', color: 'var(--ink)' }}>
+                            {game?.name || 'Unknown Game'}
+                          </h3>
+                          {result.is_coop ? (
+                            <span style={{
+                              fontFamily: 'var(--mono)',
+                              fontSize: '0.8rem',
+                              color: result.coop_won ? 'var(--green)' : 'var(--dust)',
+                              fontWeight: 500
+                            }}>
+                              {result.coop_won ? 'Team Won!' : 'Team Lost'}
+                            </span>
+                          ) : winners.length > 0 ? (
+                            <span style={{ fontFamily: 'var(--mono)', fontSize: '0.8rem', color: 'var(--amber)', fontWeight: 500 }}>
+                              {winners.length === 1 ? `${winners[0].player_name} won!` : `${winners.map(w => w.player_name).join(' & ')} won!`}
+                            </span>
+                          ) : (
+                            <span style={{ fontFamily: 'var(--mono)', fontSize: '0.75rem', color: 'var(--dust)' }}>
+                              No winner recorded
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      {result.players.length > 0 && (
+                        <div style={{ paddingLeft: '60px', display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
+                          {result.players.map((p) => (
+                            <span key={p.id} style={{
+                              padding: '0.2rem 0.5rem',
+                              background: p.is_winner ? 'var(--amber-dim)' : 'var(--cream)',
+                              color: p.is_winner ? 'var(--amber)' : 'var(--dust)',
+                              borderRadius: '10px',
+                              fontSize: '0.7rem',
+                              fontFamily: 'var(--mono)',
+                              fontWeight: p.is_winner ? 600 : 400
+                            }}>
+                              {p.player_name}{p.is_winner ? ' 🏆' : ''}
+                            </span>
+                          ))}
+                        </div>
                       )}
                     </div>
                   );
@@ -994,6 +1273,14 @@ export default function SessionPage() {
           </div>
         )}
       </main>
+
+      {/* Game Details Modal */}
+      {viewingGame && (
+        <GameDetailsModal
+          game={viewingGame}
+          onClose={() => setViewingGame(null)}
+        />
+      )}
     </div>
   );
 }

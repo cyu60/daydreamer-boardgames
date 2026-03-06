@@ -272,6 +272,9 @@ export default function SessionPage() {
     (voteCounts[b.id] || 0) - (voteCounts[a.id] || 0)
   ) || [];
 
+  // Get unique voter names from all votes (moved up so it can be used in submitGameResult)
+  const uniqueVoters = [...new Set(votes.map((v) => v.voter_name))];
+
   // Handle drag end for ranking
   const handleDragEnd = useCallback((event: DragEndEvent) => {
     const { active, over } = event;
@@ -436,18 +439,51 @@ export default function SessionPage() {
       setGameResults((prev) => [...prev, { ...(result as GameResult), players: [] }]);
     }
 
-    // Reset form
+    // Reset form - keep voter names as player suggestions
     setSelectedGameId('');
     setIsCoop(false);
     setCoopWon(null);
-    setPlayers([{ name: '', isWinner: false }]);
+    setPlayers(uniqueVoters.length > 0
+      ? uniqueVoters.map((name) => ({ name, isWinner: false }))
+      : [{ name: '', isWinner: false }]
+    );
     setSavingResult(false);
-  }, [selectedGameId, isCoop, coopWon, players, session]);
+  }, [selectedGameId, isCoop, coopWon, players, session, uniqueVoters]);
 
   // Get voters who voted for a specific game
   const getVotersForGame = (gameId: string) => {
     return votes.filter((v) => v.game_id === gameId).map((v) => v.voter_name);
   };
+
+  // Calculate aggregate ranking scores (lower is better - sum of ranks)
+  const gameRankingScores = session?.games.reduce((acc, game) => {
+    const gameVotes = votes.filter((v) => v.game_id === game.id);
+    if (gameVotes.length > 0) {
+      const totalRank = gameVotes.reduce((sum, v) => sum + (v.rank || 1), 0);
+      const avgRank = totalRank / gameVotes.length;
+      acc[game.id] = { totalRank, avgRank, voteCount: gameVotes.length };
+    }
+    return acc;
+  }, {} as Record<string, { totalRank: number; avgRank: number; voteCount: number }>) || {};
+
+  // Sort games by average rank (lower is better)
+  const rankedByVotes = session?.games.slice().sort((a, b) => {
+    const aScore = gameRankingScores[a.id];
+    const bScore = gameRankingScores[b.id];
+    if (!aScore && !bScore) return 0;
+    if (!aScore) return 1;
+    if (!bScore) return -1;
+    return aScore.avgRank - bScore.avgRank;
+  }) || [];
+
+  // Initialize players with voter names when first entering playing phase
+  const [playersInitialized, setPlayersInitialized] = useState(false);
+  useEffect(() => {
+    if (session?.status === 'playing' && uniqueVoters.length > 0 && !playersInitialized) {
+      setPlayers(uniqueVoters.map((name) => ({ name, isWinner: false })));
+      setPlayersInitialized(true);
+    }
+  }, [session?.status, uniqueVoters.length, playersInitialized]);
 
   if (loading) {
     return (
@@ -621,6 +657,77 @@ export default function SessionPage() {
                 >
                   {savingRanking ? 'Saving...' : hasRankingChanges ? 'Save My Ranking' : 'Ranking Saved'}
                 </button>
+
+                {/* Vote Summary - shows after saving or if others have voted */}
+                {uniqueVoters.length > 0 && (
+                  <div className="vote-summary" style={{ marginTop: '1.5rem' }}>
+                    <h3 style={{
+                      fontFamily: 'var(--mono)',
+                      fontSize: '0.8rem',
+                      color: 'var(--dust)',
+                      marginBottom: '0.75rem',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.02em'
+                    }}>
+                      Current Rankings ({uniqueVoters.length} voter{uniqueVoters.length !== 1 ? 's' : ''})
+                    </h3>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '1rem' }}>
+                      {uniqueVoters.map((voter) => (
+                        <span key={voter} style={{
+                          padding: '0.25rem 0.6rem',
+                          background: 'var(--cream)',
+                          borderRadius: '12px',
+                          fontSize: '0.75rem',
+                          color: 'var(--ink)'
+                        }}>
+                          {voter}
+                        </span>
+                      ))}
+                    </div>
+                    <div className="games-list">
+                      {rankedByVotes.map((game, index) => {
+                        const scores = gameRankingScores[game.id];
+                        if (!scores) return null;
+                        return (
+                          <div key={game.id} style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.75rem',
+                            padding: '0.6rem 0.75rem',
+                            background: index === 0 ? 'var(--amber-dim)' : 'var(--card)',
+                            border: '1px solid var(--rule)',
+                            borderRadius: '10px',
+                          }}>
+                            <span style={{
+                              width: '24px',
+                              height: '24px',
+                              background: index === 0 ? 'var(--amber)' : 'var(--dust)',
+                              color: '#fff',
+                              borderRadius: '50%',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              fontSize: '0.75rem',
+                              fontWeight: 600
+                            }}>
+                              {index + 1}
+                            </span>
+                            <span style={{ flex: 1, fontFamily: 'var(--serif)', fontSize: '0.9rem' }}>
+                              {game.name}
+                            </span>
+                            <span style={{
+                              fontFamily: 'var(--mono)',
+                              fontSize: '0.75rem',
+                              color: 'var(--dust)'
+                            }}>
+                              avg #{scores.avgRank.toFixed(1)}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </>
             ) : (
               // Show non-draggable list when no name entered

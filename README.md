@@ -71,6 +71,9 @@ daydreamer-boardgames/
 ├── boardgames-scraper/   # Go CLI scraper
 │   ├── cmd/              # CLI commands
 │   └── data/             # Scraped game data
+├── examples/             # Example JSON data files
+│   ├── games_input.json  # Sample scraper input
+│   └── games_output.json # Sample scraped output
 └── CLAUDE.md             # Development log
 ```
 

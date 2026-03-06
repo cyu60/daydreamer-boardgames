@@ -237,6 +237,11 @@ html, body {
   transform: scale(0.98);
 }
 
+/* Disable active transform for sortable items - conflicts with drag */
+.game-item.sortable:active {
+  transform: none;
+}
+
 .game-item img {
   width: 56px;
   height: 56px;

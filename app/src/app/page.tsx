@@ -1,15 +1,17 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
+import { nanoid } from 'nanoid';
 import { supabase } from '@/lib/supabase';
-import { Game, PlaySession, Player } from '@/types/database';
+import { Game, PlaySession, Vote, TonightsPick, Session } from '@/types/database';
 
 type Tab = 'collection' | 'session' | 'history';
 
 // Moon Logo SVG Component
 function MoonLogo() {
   return (
-    <svg className="logo w-12 h-12" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg">
+    <svg className="logo" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg">
       <defs>
         <filter id="moonGlow" x="-50%" y="-50%" width="200%" height="200%">
           <feGaussianBlur stdDeviation="8" result="blur1"/>
@@ -37,7 +39,7 @@ function MoonLogo() {
 // Search Icon
 function SearchIcon() {
   return (
-    <svg viewBox="0 0 24 24" className="w-5 h-5 fill-[var(--dust)] shrink-0">
+    <svg viewBox="0 0 24 24">
       <path d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0016 9.5 6.5 6.5 0 109.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
     </svg>
   );
@@ -46,7 +48,7 @@ function SearchIcon() {
 // Check Icon
 function CheckIcon() {
   return (
-    <svg viewBox="0 0 24 24" className="w-5 h-5 fill-current">
+    <svg viewBox="0 0 24 24">
       <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
     </svg>
   );
@@ -55,7 +57,7 @@ function CheckIcon() {
 // Plus Icon
 function PlusIcon() {
   return (
-    <svg viewBox="0 0 24 24" className="w-5 h-5 fill-current">
+    <svg viewBox="0 0 24 24">
       <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
     </svg>
   );
@@ -64,7 +66,7 @@ function PlusIcon() {
 // Close Icon
 function CloseIcon() {
   return (
-    <svg viewBox="0 0 24 24" className="w-[18px] h-[18px] fill-current">
+    <svg viewBox="0 0 24 24" style={{ width: '18px', height: '18px' }}>
       <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
     </svg>
   );
@@ -74,40 +76,52 @@ function CloseIcon() {
 function GameItem({
   game,
   isSelected,
-  onToggle
+  onToggle,
+  onViewDetails
 }: {
   game: Game;
   isSelected: boolean;
   onToggle: () => void;
+  onViewDetails: () => void;
 }) {
   return (
-    <div className="flex items-center gap-3 p-3 bg-[var(--card)] border-[1.5px] border-[var(--rule)] rounded-[14px] transition-all active:scale-[0.98]">
+    <div className="game-item">
       {game.image_url ? (
         <img
           src={game.image_url}
           alt={game.name}
-          className="w-14 h-14 rounded-[10px] object-cover shrink-0"
+          onClick={onViewDetails}
+          style={{ cursor: 'pointer' }}
         />
       ) : (
-        <div className="w-14 h-14 rounded-[10px] bg-[var(--cream)] shrink-0 flex items-center justify-center text-[var(--dust)] text-xs">
+        <div
+          onClick={onViewDetails}
+          style={{
+            width: '56px',
+            height: '56px',
+            borderRadius: '10px',
+            background: 'var(--cream)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: 'var(--dust)',
+            fontSize: '0.65rem',
+            cursor: 'pointer',
+            flexShrink: 0
+          }}
+        >
           No img
         </div>
       )}
-      <div className="flex-1 min-w-0">
-        <h3 className="font-[var(--serif)] text-base font-normal text-[var(--ink)] mb-0.5 whitespace-nowrap overflow-hidden text-ellipsis" style={{ fontFamily: 'var(--serif)' }}>
-          {game.name}
-        </h3>
-        <span className="text-xs text-[var(--dust)]" style={{ fontFamily: 'var(--mono)' }}>
+      <div className="game-info" onClick={onViewDetails} style={{ cursor: 'pointer' }}>
+        <h3>{game.name}</h3>
+        <span className="game-meta">
           {game.min_players}-{game.max_players} players · {game.play_time_minutes} min
         </span>
       </div>
       <button
         onClick={onToggle}
-        className={`w-10 h-10 rounded-[10px] border-[1.5px] flex items-center justify-center shrink-0 transition-all cursor-pointer ${
-          isSelected
-            ? 'bg-[var(--green)] border-[var(--green)] text-white'
-            : 'border-[var(--rule)] bg-[var(--paper)] text-[var(--dust)] hover:border-[var(--cobalt)] hover:text-[var(--cobalt)]'
-        }`}
+        className={`add-btn ${isSelected ? 'added' : ''}`}
       >
         {isSelected ? <CheckIcon /> : <PlusIcon />}
       </button>
@@ -115,38 +129,199 @@ function GameItem({
   );
 }
 
-// Selected Game Component (for Tonight's view)
+// Helper to extract YouTube video ID
+function getYouTubeVideoId(url: string): string | null {
+  const patterns = [
+    /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\n?#]+)/,
+  ];
+  for (const pattern of patterns) {
+    const match = url.match(pattern);
+    if (match) return match[1];
+  }
+  return null;
+}
+
+// Game Details Modal
+function GameDetailsModal({
+  game,
+  onClose
+}: {
+  game: Game;
+  onClose: () => void;
+}) {
+  const videoId = game.tutorial_url ? getYouTubeVideoId(game.tutorial_url) : null;
+
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        inset: 0,
+        background: 'rgba(10, 10, 15, 0.7)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 100,
+        padding: '1rem'
+      }}
+      onClick={onClose}
+    >
+      <div
+        style={{
+          background: 'var(--card)',
+          borderRadius: '20px',
+          maxWidth: '480px',
+          width: '100%',
+          maxHeight: '90vh',
+          overflow: 'auto',
+          padding: '1.5rem'
+        }}
+        onClick={e => e.stopPropagation()}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
+          <h2 style={{ fontFamily: 'var(--serif)', fontSize: '1.5rem', color: 'var(--ink)' }}>
+            {game.name}
+          </h2>
+          <button
+            onClick={onClose}
+            style={{
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              padding: '0.25rem',
+              color: 'var(--dust)'
+            }}
+          >
+            <CloseIcon />
+          </button>
+        </div>
+
+        {/* YouTube Tutorial Embed */}
+        {videoId && (
+          <div style={{
+            position: 'relative',
+            paddingBottom: '56.25%', // 16:9 aspect ratio
+            height: 0,
+            marginBottom: '1rem',
+            borderRadius: '12px',
+            overflow: 'hidden'
+          }}>
+            <iframe
+              src={`https://www.youtube.com/embed/${videoId}`}
+              title={`${game.name} Tutorial`}
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: '100%',
+                height: '100%',
+                border: 'none'
+              }}
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
+            />
+          </div>
+        )}
+
+        <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
+          <div style={{ padding: '0.5rem 0.75rem', background: 'var(--cobalt-dim)', borderRadius: '8px' }}>
+            <span style={{ fontFamily: 'var(--mono)', fontSize: '0.75rem', color: 'var(--cobalt)' }}>
+              {game.min_players}-{game.max_players} players
+            </span>
+          </div>
+          <div style={{ padding: '0.5rem 0.75rem', background: 'var(--cobalt-dim)', borderRadius: '8px' }}>
+            <span style={{ fontFamily: 'var(--mono)', fontSize: '0.75rem', color: 'var(--cobalt)' }}>
+              {game.play_time_minutes} min
+            </span>
+          </div>
+          {game.rating && (
+            <div style={{ padding: '0.5rem 0.75rem', background: 'var(--amber-dim)', borderRadius: '8px' }}>
+              <span style={{ fontFamily: 'var(--mono)', fontSize: '0.75rem', color: 'var(--amber)' }}>
+                ★ {game.rating}
+              </span>
+            </div>
+          )}
+          {game.year_published && (
+            <div style={{ padding: '0.5rem 0.75rem', background: 'var(--cream)', borderRadius: '8px' }}>
+              <span style={{ fontFamily: 'var(--mono)', fontSize: '0.75rem', color: 'var(--dust)' }}>
+                {game.year_published}
+              </span>
+            </div>
+          )}
+        </div>
+
+        {game.description && (
+          <p style={{ fontSize: '0.9rem', lineHeight: 1.6, color: 'var(--ink)', marginBottom: '1rem' }}>
+            {game.description}
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// Selected Game for Tonight
 function SelectedGame({
   game,
+  votes,
   onRemove
 }: {
   game: Game;
+  votes: number;
   onRemove: () => void;
 }) {
   return (
-    <div className="flex items-center gap-3 p-3 bg-[var(--cobalt-dim)] border-[1.5px] border-[rgba(28,63,220,0.2)] rounded-[14px]">
+    <div style={{
+      display: 'flex',
+      alignItems: 'center',
+      gap: '0.85rem',
+      padding: '0.85rem',
+      background: 'var(--cobalt-dim)',
+      border: '1.5px solid rgba(28, 63, 220, 0.2)',
+      borderRadius: '14px'
+    }}>
       {game.image_url ? (
         <img
           src={game.image_url}
           alt={game.name}
-          className="w-[50px] h-[50px] rounded-[10px] object-cover"
+          style={{ width: '50px', height: '50px', borderRadius: '10px', objectFit: 'cover' }}
         />
       ) : (
-        <div className="w-[50px] h-[50px] rounded-[10px] bg-[var(--cream)] flex items-center justify-center text-[var(--dust)] text-xs">
+        <div style={{
+          width: '50px',
+          height: '50px',
+          borderRadius: '10px',
+          background: 'var(--cream)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          color: 'var(--dust)',
+          fontSize: '0.6rem'
+        }}>
           No img
         </div>
       )}
-      <div className="flex-1">
-        <h3 className="text-[0.95rem] font-normal text-[var(--ink)] mb-0.5" style={{ fontFamily: 'var(--serif)' }}>
+      <div style={{ flex: 1 }}>
+        <h3 style={{ fontFamily: 'var(--serif)', fontSize: '0.95rem', color: 'var(--ink)', marginBottom: '0.1rem' }}>
           {game.name}
         </h3>
-        <span className="text-[0.72rem] text-[var(--cobalt)]" style={{ fontFamily: 'var(--mono)' }}>
-          {game.min_players}-{game.max_players} players
+        <span style={{ fontFamily: 'var(--mono)', fontSize: '0.72rem', color: 'var(--cobalt)' }}>
+          {votes} vote{votes !== 1 ? 's' : ''}
         </span>
       </div>
       <button
         onClick={onRemove}
-        className="w-8 h-8 rounded-lg border-none bg-transparent text-[var(--dust)] cursor-pointer flex items-center justify-center transition-all hover:bg-[#fee2e2] hover:text-[#dc2626]"
+        style={{
+          width: '32px',
+          height: '32px',
+          borderRadius: '8px',
+          border: 'none',
+          background: 'transparent',
+          color: 'var(--dust)',
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center'
+        }}
       >
         <CloseIcon />
       </button>
@@ -154,76 +329,105 @@ function SelectedGame({
   );
 }
 
-// History Item Component
-function HistoryItem({
-  session,
-  game,
-  players,
-  winner
-}: {
-  session: PlaySession;
-  game?: Game;
-  players: string[];
-  winner?: string;
-}) {
-  const date = new Date(session.played_at);
-  const day = date.getDate().toString().padStart(2, '0');
-  const month = date.toLocaleString('en', { month: 'short' });
-
-  return (
-    <div className="flex items-center gap-3 p-3 bg-[var(--card)] border-[1.5px] border-[var(--rule)] rounded-[14px]">
-      <div className="w-12 h-12 bg-[var(--cobalt-dim)] rounded-[10px] flex flex-col items-center justify-center shrink-0">
-        <span className="text-[1.1rem] text-[var(--cobalt)] leading-none" style={{ fontFamily: 'var(--serif)' }}>{day}</span>
-        <span className="text-[0.6rem] text-[var(--cobalt)] uppercase tracking-wider" style={{ fontFamily: 'var(--mono)' }}>{month}</span>
-      </div>
-      <div className="flex-1 min-w-0">
-        <h3 className="text-[0.95rem] font-normal text-[var(--ink)] mb-0.5" style={{ fontFamily: 'var(--serif)' }}>
-          {game?.name || 'Unknown Game'}
-        </h3>
-        <span className="text-[0.72rem] text-[var(--dust)] whitespace-nowrap overflow-hidden text-ellipsis block">
-          {players.join(', ')}
-        </span>
-      </div>
-      {winner && (
-        <span className="text-[0.7rem] text-[var(--amber)] font-medium whitespace-nowrap" style={{ fontFamily: 'var(--mono)' }}>
-          {winner} won
-        </span>
-      )}
-    </div>
-  );
-}
-
 export default function Home() {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<Tab>('collection');
   const [games, setGames] = useState<Game[]>([]);
   const [selectedGameIds, setSelectedGameIds] = useState<Set<string>>(new Set());
+  const [gameVotes, setGameVotes] = useState<Record<string, number>>({});
+  const [allVotes, setAllVotes] = useState<Vote[]>([]);
   const [sessions, setSessions] = useState<PlaySession[]>([]);
+  const [gameSessions, setGameSessions] = useState<Session[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
+  const [viewingGame, setViewingGame] = useState<Game | null>(null);
+  const [voterName, setVoterName] = useState('');
+  const [showCreateSession, setShowCreateSession] = useState(false);
+  const [hostName, setHostName] = useState('');
+  const [sessionName, setSessionName] = useState('');
+  const [creating, setCreating] = useState(false);
 
-  // Fetch games from Supabase
+  // Fetch games, votes, and tonight's picks from Supabase
   useEffect(() => {
-    async function fetchGames() {
+    async function fetchData() {
       if (!supabase) {
         console.warn('Supabase not configured');
         setLoading(false);
         return;
       }
 
-      const { data, error } = await supabase
+      // Fetch games
+      const { data: gamesData, error: gamesError } = await supabase
         .from('games')
         .select('*')
         .order('name');
 
-      if (error) {
-        console.error('Error fetching games:', error);
+      if (gamesError) {
+        console.error('Error fetching games:', gamesError);
       } else {
-        setGames(data || []);
+        setGames(gamesData || []);
       }
+
+      // Fetch tonight's picks
+      const { data: picksData, error: picksError } = await supabase
+        .from('tonights_picks')
+        .select('*') as { data: TonightsPick[] | null; error: Error | null };
+
+      if (picksError) {
+        console.error('Error fetching picks:', picksError);
+      } else if (picksData) {
+        const pickIds = new Set(picksData.map((p: TonightsPick) => p.game_id));
+        setSelectedGameIds(pickIds);
+      }
+
+      // Fetch votes (today's votes)
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const { data: votesData, error: votesError } = await supabase
+        .from('votes')
+        .select('*')
+        .gte('created_at', today.toISOString()) as { data: Vote[] | null; error: Error | null };
+
+      if (votesError) {
+        console.error('Error fetching votes:', votesError);
+      } else if (votesData) {
+        setAllVotes(votesData);
+        // Aggregate votes by game
+        const voteCounts: Record<string, number> = {};
+        votesData.forEach((vote: Vote) => {
+          voteCounts[vote.game_id] = (voteCounts[vote.game_id] || 0) + 1;
+        });
+        setGameVotes(voteCounts);
+      }
+
+      // Fetch play sessions for history
+      const { data: sessionsData, error: sessionsError } = await supabase
+        .from('play_sessions')
+        .select('*')
+        .order('played_at', { ascending: false });
+
+      if (sessionsError) {
+        console.error('Error fetching sessions:', sessionsError);
+      } else {
+        setSessions(sessionsData || []);
+      }
+
+      // Fetch game sessions
+      const { data: gameSessionsData, error: gameSessionsError } = await supabase
+        .from('sessions')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (gameSessionsError) {
+        console.error('Error fetching game sessions:', gameSessionsError);
+      } else {
+        setGameSessions((gameSessionsData || []) as Session[]);
+      }
+
       setLoading(false);
     }
 
-    fetchGames();
+    fetchData();
   }, []);
 
   // Filter games by search query
@@ -231,21 +435,157 @@ export default function Home() {
     game.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  // Get selected games
-  const selectedGames = games.filter(game => selectedGameIds.has(game.id));
+  // Get selected games sorted by votes
+  const selectedGames = games
+    .filter(game => selectedGameIds.has(game.id))
+    .sort((a, b) => (gameVotes[b.id] || 0) - (gameVotes[a.id] || 0));
 
-  // Toggle game selection
-  const toggleGameSelection = (gameId: string) => {
-    setSelectedGameIds(prev => {
-      const next = new Set(prev);
-      if (next.has(gameId)) {
-        next.delete(gameId);
-      } else {
-        next.add(gameId);
+  // Toggle game selection (persists to tonights_picks)
+  const toggleGameSelection = useCallback(async (gameId: string) => {
+    if (!supabase) return;
+
+    const isCurrentlySelected = selectedGameIds.has(gameId);
+
+    if (isCurrentlySelected) {
+      // Remove from tonight's picks
+      const { error } = await supabase
+        .from('tonights_picks')
+        .delete()
+        .eq('game_id', gameId);
+
+      if (error) {
+        console.error('Error removing pick:', error);
+        return;
       }
-      return next;
-    });
-  };
+
+      setSelectedGameIds(prev => {
+        const next = new Set(prev);
+        next.delete(gameId);
+        return next;
+      });
+    } else {
+      // Add to tonight's picks
+      const { error } = await supabase
+        .from('tonights_picks')
+        .insert({ game_id: gameId } as any);
+
+      if (error) {
+        console.error('Error adding pick:', error);
+        return;
+      }
+
+      setSelectedGameIds(prev => {
+        const next = new Set(prev);
+        next.add(gameId);
+        return next;
+      });
+    }
+  }, [selectedGameIds]);
+
+  // Vote for a game (persists to Supabase)
+  const voteForGame = useCallback(async (gameId: string) => {
+    if (!voterName.trim()) {
+      alert('Please enter your name to vote!');
+      return;
+    }
+
+    if (!supabase) return;
+
+    // Check if this person already voted for this game today
+    const alreadyVoted = allVotes.some(
+      v => v.game_id === gameId && v.voter_name.toLowerCase() === voterName.trim().toLowerCase()
+    );
+
+    if (alreadyVoted) {
+      alert('You already voted for this game!');
+      return;
+    }
+
+    // Insert vote into Supabase
+    const { data, error } = await supabase
+      .from('votes')
+      .insert({ game_id: gameId, voter_name: voterName.trim() } as any)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error voting:', error);
+      alert('Failed to vote. Please try again.');
+      return;
+    }
+
+    // Update local state
+    setAllVotes(prev => [...prev, data]);
+    setGameVotes(prev => ({
+      ...prev,
+      [gameId]: (prev[gameId] || 0) + 1
+    }));
+  }, [voterName, allVotes]);
+
+  // Create a new session
+  const createSession = useCallback(async () => {
+    if (!hostName.trim()) {
+      alert('Please enter your name!');
+      return;
+    }
+
+    if (selectedGameIds.size === 0) {
+      alert('Please select at least one game first!');
+      return;
+    }
+
+    if (!supabase) return;
+
+    setCreating(true);
+
+    try {
+      // Generate unique slug
+      const slug = nanoid(8);
+
+      // Create session
+      const { data: sessionData, error: sessionError } = await supabase
+        .from('sessions')
+        .insert({
+          slug,
+          name: sessionName.trim() || null,
+          host_name: hostName.trim(),
+          status: 'voting'
+        } as any)
+        .select()
+        .single() as { data: Session | null; error: Error | null };
+
+      if (sessionError || !sessionData) {
+        console.error('Error creating session:', sessionError);
+        alert('Failed to create session. Please try again.');
+        setCreating(false);
+        return;
+      }
+
+      // Add games to session
+      const gameInserts = Array.from(selectedGameIds).map(gameId => ({
+        session_id: sessionData.id,
+        game_id: gameId
+      }));
+
+      const { error: gamesError } = await supabase
+        .from('session_games')
+        .insert(gameInserts as any);
+
+      if (gamesError) {
+        console.error('Error adding games to session:', gamesError);
+      }
+
+      // Store host token for host identification
+      localStorage.setItem(`hostToken_${slug}`, hostName.trim());
+
+      // Redirect to session page
+      router.push(`/session/${slug}`);
+    } catch (err) {
+      console.error('Error:', err);
+      alert('Something went wrong. Please try again.');
+      setCreating(false);
+    }
+  }, [hostName, sessionName, selectedGameIds, router]);
 
   const tabs: { id: Tab; label: string }[] = [
     { id: 'collection', label: 'My Games' },
@@ -254,30 +594,24 @@ export default function Home() {
   ];
 
   return (
-    <div className="max-w-[480px] mx-auto min-h-screen flex flex-col bg-[var(--paper)] sm:max-w-[540px] sm:mt-8 sm:rounded-3xl sm:min-h-0 sm:h-[calc(100vh-4rem)] sm:shadow-[0_8px_32px_rgba(10,10,15,0.12),0_0_0_1px_var(--rule)] sm:overflow-hidden">
+    <div className="app-container">
       {/* Header */}
-      <header className="px-5 pt-8 pb-5 text-center bg-[var(--ink)] relative overflow-hidden sm:rounded-t-3xl">
-        <div className="header-glow absolute inset-0 pointer-events-none" />
-        <div className="relative z-10 flex items-center justify-center gap-3">
+      <header className="app-header">
+        <div className="brand">
           <MoonLogo />
-          <span className="text-[1.35rem] text-white leading-tight" style={{ fontFamily: 'var(--serif)' }}>
-            Day<em className="italic text-[var(--cobalt-lt)]">Dreamers</em> Board Games
+          <span className="brand-name">
+            Day<em>Dreamers</em> Board Games
           </span>
         </div>
       </header>
 
       {/* Tabs */}
-      <nav className="flex gap-2 px-4 py-3 bg-[var(--paper)]">
+      <nav className="app-tabs">
         {tabs.map(tab => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className={`flex-1 py-2 px-2 border-none rounded-[10px] text-[0.85rem] font-medium cursor-pointer transition-all ${
-              activeTab === tab.id
-                ? 'bg-[var(--cobalt)] text-white'
-                : 'bg-transparent text-[var(--dust)] hover:text-[var(--ink)] hover:bg-[var(--cream)]'
-            }`}
-            style={{ fontFamily: 'var(--sans)' }}
+            className={`tab ${activeTab === tab.id ? 'active' : ''}`}
           >
             {tab.label}
           </button>
@@ -285,29 +619,27 @@ export default function Home() {
       </nav>
 
       {/* Content */}
-      <main className="flex-1 overflow-y-auto px-4 pb-8 pt-2 bg-[var(--paper)]">
+      <main className="app-content">
         {/* Collection View */}
         {activeTab === 'collection' && (
           <section>
             {/* Search Bar */}
-            <div className="flex items-center gap-2 px-4 py-3 bg-[var(--card)] border-[1.5px] border-[var(--rule)] rounded-[14px] mb-4 transition-all focus-within:border-[var(--cobalt-lt)] focus-within:shadow-[0_0_0_3px_rgba(28,63,220,0.1)]">
+            <div className="search-bar">
               <SearchIcon />
               <input
                 type="text"
                 placeholder="Search games..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="flex-1 border-none bg-transparent text-[0.9rem] text-[var(--ink)] outline-none placeholder:text-[var(--dust)]"
-                style={{ fontFamily: 'var(--sans)' }}
               />
             </div>
 
             {/* Games List */}
-            <div className="flex flex-col gap-2">
+            <div className="games-list">
               {loading ? (
-                <p className="text-center text-[var(--dust)] py-8">Loading games...</p>
+                <p style={{ textAlign: 'center', color: 'var(--dust)', padding: '2rem 0' }}>Loading games...</p>
               ) : filteredGames.length === 0 ? (
-                <p className="text-center text-[var(--dust)] py-8">
+                <p style={{ textAlign: 'center', color: 'var(--dust)', padding: '2rem 0' }}>
                   {searchQuery ? 'No games found' : 'No games in collection'}
                 </p>
               ) : (
@@ -317,6 +649,7 @@ export default function Home() {
                     game={game}
                     isSelected={selectedGameIds.has(game.id)}
                     onToggle={() => toggleGameSelection(game.id)}
+                    onViewDetails={() => setViewingGame(game)}
                   />
                 ))
               )}
@@ -327,45 +660,119 @@ export default function Home() {
         {/* Tonight's Session View */}
         {activeTab === 'session' && (
           <section>
-            <div className="flex justify-between items-baseline mb-4">
-              <h2 className="text-[1.35rem] font-normal text-[var(--ink)]" style={{ fontFamily: 'var(--serif)' }}>
-                Tonight&apos;s <em className="italic text-[var(--cobalt)]">Games</em>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '1rem' }}>
+              <h2 style={{ fontFamily: 'var(--serif)', fontSize: '1.35rem', color: 'var(--ink)' }}>
+                Tonight&apos;s <em style={{ fontStyle: 'italic', color: 'var(--cobalt)' }}>Games</em>
               </h2>
-              <span className="text-[0.72rem] text-[var(--dust)]" style={{ fontFamily: 'var(--mono)' }}>
+              <span style={{ fontFamily: 'var(--mono)', fontSize: '0.72rem', color: 'var(--dust)' }}>
                 {selectedGames.length} selected
               </span>
             </div>
 
             {selectedGames.length === 0 ? (
-              <p className="text-center text-[var(--dust)] py-8">
+              <p style={{ textAlign: 'center', color: 'var(--dust)', padding: '2rem 0' }}>
                 No games selected. Go to My Games to add some!
               </p>
             ) : (
               <>
-                <div className="flex flex-col gap-2 mb-5">
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem', marginBottom: '1.25rem' }}>
                   {selectedGames.map(game => (
                     <SelectedGame
                       key={game.id}
                       game={game}
+                      votes={gameVotes[game.id] || 0}
                       onRemove={() => toggleGameSelection(game.id)}
                     />
                   ))}
                 </div>
 
-                <div className="flex gap-2 mb-4">
-                  <button className="flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl border-none bg-[var(--cobalt)] text-white text-[0.9rem] font-semibold cursor-pointer transition-all hover:bg-[var(--cobalt-lt)] active:scale-[0.98]" style={{ fontFamily: 'var(--sans)' }}>
-                    <CheckIcon />
-                    Start Session
-                  </button>
-                  <button className="flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl border-[1.5px] border-[var(--rule)] bg-[var(--card)] text-[var(--ink)] text-[0.9rem] font-semibold cursor-pointer transition-all hover:border-[var(--cobalt)] hover:text-[var(--cobalt)]" style={{ fontFamily: 'var(--sans)' }}>
-                    Share
-                  </button>
-                </div>
+                {/* Create Session Button */}
+                <button
+                  onClick={() => setShowCreateSession(true)}
+                  style={{
+                    width: '100%',
+                    padding: '1rem',
+                    background: 'var(--cobalt)',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: '12px',
+                    fontWeight: 600,
+                    fontSize: '0.95rem',
+                    cursor: 'pointer',
+                    marginBottom: '1rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '0.5rem'
+                  }}
+                >
+                  <svg viewBox="0 0 24 24" style={{ width: '20px', height: '20px', fill: 'currentColor' }}>
+                    <path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92 1.61 0 2.92-1.31 2.92-2.92s-1.31-2.92-2.92-2.92z"/>
+                  </svg>
+                  Create Shareable Session
+                </button>
 
-                <p className="text-center text-[0.78rem] text-[var(--dust)] py-3 bg-[var(--cream)] rounded-[10px]">
-                  Friends with the link can see your picks!
+                <p style={{
+                  textAlign: 'center',
+                  fontSize: '0.78rem',
+                  color: 'var(--dust)',
+                  padding: '0.75rem',
+                  background: 'var(--cream)',
+                  borderRadius: '10px'
+                }}>
+                  Create a session and share the link with friends to vote!
                 </p>
               </>
+            )}
+
+            {/* Recent Sessions */}
+            {gameSessions.length > 0 && (
+              <div style={{ marginTop: '1.5rem' }}>
+                <h3 style={{ fontFamily: 'var(--serif)', fontSize: '1.1rem', color: 'var(--ink)', marginBottom: '0.75rem' }}>
+                  Recent Sessions
+                </h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  {gameSessions.slice(0, 5).map(session => (
+                    <a
+                      key={session.id}
+                      href={`/session/${session.slug}`}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: '0.75rem',
+                        background: 'var(--card)',
+                        border: '1px solid var(--rule)',
+                        borderRadius: '10px',
+                        textDecoration: 'none',
+                        color: 'inherit'
+                      }}
+                    >
+                      <div>
+                        <div style={{ fontWeight: 500, fontSize: '0.9rem' }}>
+                          {session.name || `${session.host_name}'s Session`}
+                        </div>
+                        <div style={{ fontFamily: 'var(--mono)', fontSize: '0.7rem', color: 'var(--dust)' }}>
+                          {new Date(session.created_at).toLocaleDateString()}
+                        </div>
+                      </div>
+                      <span style={{
+                        padding: '0.25rem 0.5rem',
+                        background: session.status === 'voting' ? 'var(--cobalt-dim)' :
+                                   session.status === 'playing' ? 'var(--amber-dim)' : 'var(--green-dim)',
+                        color: session.status === 'voting' ? 'var(--cobalt)' :
+                               session.status === 'playing' ? 'var(--amber)' : 'var(--green)',
+                        borderRadius: '12px',
+                        fontSize: '0.7rem',
+                        fontWeight: 500,
+                        textTransform: 'capitalize'
+                      }}>
+                        {session.status}
+                      </span>
+                    </a>
+                  ))}
+                </div>
+              </div>
             )}
           </section>
         )}
@@ -373,26 +780,173 @@ export default function Home() {
         {/* History View */}
         {activeTab === 'history' && (
           <section>
-            <div className="flex flex-col gap-2">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
               {sessions.length === 0 ? (
-                <p className="text-center text-[var(--dust)] py-8">
+                <p style={{ textAlign: 'center', color: 'var(--dust)', padding: '2rem 0' }}>
                   No play sessions logged yet.
                 </p>
               ) : (
-                sessions.map(session => (
-                  <HistoryItem
-                    key={session.id}
-                    session={session}
-                    game={games.find(g => g.id === session.game_id)}
-                    players={[]}
-                    winner={undefined}
-                  />
-                ))
+                sessions.map(session => {
+                  const game = games.find(g => g.id === session.game_id);
+                  const date = new Date(session.played_at);
+                  return (
+                    <div key={session.id} className="game-item">
+                      <div style={{
+                        width: '48px',
+                        height: '48px',
+                        background: 'var(--cobalt-dim)',
+                        borderRadius: '10px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                      }}>
+                        <span style={{ fontFamily: 'var(--serif)', fontSize: '1.1rem', color: 'var(--cobalt)' }}>
+                          {date.getDate().toString().padStart(2, '0')}
+                        </span>
+                        <span style={{ fontFamily: 'var(--mono)', fontSize: '0.6rem', color: 'var(--cobalt)', textTransform: 'uppercase' }}>
+                          {date.toLocaleString('en', { month: 'short' })}
+                        </span>
+                      </div>
+                      <div className="game-info">
+                        <h3>{game?.name || 'Unknown Game'}</h3>
+                      </div>
+                    </div>
+                  );
+                })
               )}
             </div>
           </section>
         )}
       </main>
+
+      {/* Game Details Modal */}
+      {viewingGame && (
+        <GameDetailsModal
+          game={viewingGame}
+          onClose={() => setViewingGame(null)}
+        />
+      )}
+
+      {/* Create Session Modal */}
+      {showCreateSession && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(10, 10, 15, 0.7)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 100,
+            padding: '1rem'
+          }}
+          onClick={() => setShowCreateSession(false)}
+        >
+          <div
+            style={{
+              background: 'var(--card)',
+              borderRadius: '20px',
+              maxWidth: '400px',
+              width: '100%',
+              padding: '1.5rem'
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.25rem' }}>
+              <h2 style={{ fontFamily: 'var(--serif)', fontSize: '1.3rem', color: 'var(--ink)' }}>
+                Create <em style={{ fontStyle: 'italic', color: 'var(--cobalt)' }}>Session</em>
+              </h2>
+              <button
+                onClick={() => setShowCreateSession(false)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  padding: '0.25rem',
+                  color: 'var(--dust)'
+                }}
+              >
+                <CloseIcon />
+              </button>
+            </div>
+
+            <div style={{ marginBottom: '1rem' }}>
+              <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 500, marginBottom: '0.5rem', color: 'var(--ink)' }}>
+                Your Name *
+              </label>
+              <input
+                type="text"
+                placeholder="Enter your name..."
+                value={hostName}
+                onChange={(e) => setHostName(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '0.75rem',
+                  border: '1.5px solid var(--rule)',
+                  borderRadius: '10px',
+                  fontSize: '0.9rem',
+                  fontFamily: 'var(--sans)',
+                  background: 'var(--paper)'
+                }}
+              />
+            </div>
+
+            <div style={{ marginBottom: '1.5rem' }}>
+              <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 500, marginBottom: '0.5rem', color: 'var(--ink)' }}>
+                Session Name (optional)
+              </label>
+              <input
+                type="text"
+                placeholder="e.g. Friday Game Night"
+                value={sessionName}
+                onChange={(e) => setSessionName(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '0.75rem',
+                  border: '1.5px solid var(--rule)',
+                  borderRadius: '10px',
+                  fontSize: '0.9rem',
+                  fontFamily: 'var(--sans)',
+                  background: 'var(--paper)'
+                }}
+              />
+            </div>
+
+            <div style={{
+              padding: '0.75rem',
+              background: 'var(--cream)',
+              borderRadius: '10px',
+              marginBottom: '1.25rem'
+            }}>
+              <div style={{ fontSize: '0.8rem', color: 'var(--dust)', marginBottom: '0.25rem' }}>
+                Games in this session:
+              </div>
+              <div style={{ fontSize: '0.9rem', fontWeight: 500, color: 'var(--ink)' }}>
+                {selectedGames.map(g => g.name).join(', ')}
+              </div>
+            </div>
+
+            <button
+              onClick={createSession}
+              disabled={creating || !hostName.trim()}
+              style={{
+                width: '100%',
+                padding: '1rem',
+                background: creating || !hostName.trim() ? 'var(--dust)' : 'var(--cobalt)',
+                color: '#fff',
+                border: 'none',
+                borderRadius: '12px',
+                fontWeight: 600,
+                fontSize: '0.95rem',
+                cursor: creating || !hostName.trim() ? 'default' : 'pointer'
+              }}
+            >
+              {creating ? 'Creating...' : 'Create & Share Link'}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

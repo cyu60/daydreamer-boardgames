@@ -1,5 +1,5 @@
-@import "tailwindcss";
 @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&display=swap');
+@import "tailwindcss";
 
 :root {
   /* DayDreamers Design Tokens */
@@ -55,8 +55,55 @@ html, body {
   color: var(--ink);
 }
 
-/* Moon Glow SVG Filter - works on dark backgrounds */
+/* ══════════════════════════════════════════════════════════════════════════
+   APP LAYOUT
+   ══════════════════════════════════════════════════════════════════════════ */
+
+.app-container {
+  max-width: 480px;
+  margin: 0 auto;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--paper);
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   HEADER
+   ══════════════════════════════════════════════════════════════════════════ */
+
+.app-header {
+  padding: 2rem 1.25rem 1.25rem;
+  text-align: center;
+  background: var(--ink);
+  position: relative;
+  overflow: hidden;
+}
+
+/* Ambient glow background */
+.app-header::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 80% 80% at 30% 40%, rgba(28, 63, 220, 0.4) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 60% at 70% 60%, rgba(74, 106, 255, 0.25) 0%, transparent 55%),
+    radial-gradient(ellipse 50% 40% at 80% 20%, rgba(217, 119, 6, 0.15) 0%, transparent 50%);
+  pointer-events: none;
+}
+
+.brand {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.7rem;
+}
+
 .logo {
+  width: 48px;
+  height: 48px;
   animation: float 4s ease-in-out infinite;
 }
 
@@ -65,10 +112,531 @@ html, body {
   50% { transform: translateY(-4px); }
 }
 
-/* Header ambient glow background */
-.header-glow {
-  background:
-    radial-gradient(ellipse 80% 80% at 30% 40%, rgba(28, 63, 220, 0.4) 0%, transparent 60%),
-    radial-gradient(ellipse 60% 60% at 70% 60%, rgba(74, 106, 255, 0.25) 0%, transparent 55%),
-    radial-gradient(ellipse 50% 40% at 80% 20%, rgba(217, 119, 6, 0.15) 0%, transparent 50%);
+.brand-name {
+  font-family: var(--serif);
+  font-size: 1.35rem;
+  color: #fff;
+  line-height: 1.2;
+}
+
+.brand-name em {
+  font-style: italic;
+  color: var(--cobalt-lt);
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   TABS
+   ══════════════════════════════════════════════════════════════════════════ */
+
+.app-tabs {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  background: var(--paper);
+}
+
+.tab {
+  flex: 1;
+  padding: 0.6rem 0.5rem;
+  border: none;
+  background: transparent;
+  font-family: var(--sans);
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--dust);
+  cursor: pointer;
+  border-radius: 10px;
+  transition: all 0.2s ease;
+}
+
+.tab:hover {
+  color: var(--ink);
+  background: var(--cream);
+}
+
+.tab.active {
+  background: var(--cobalt);
+  color: #fff;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   CONTENT
+   ══════════════════════════════════════════════════════════════════════════ */
+
+.app-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0.5rem 1rem 2rem;
+  background: var(--paper);
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   SEARCH BAR
+   ══════════════════════════════════════════════════════════════════════════ */
+
+.search-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.75rem 1rem;
+  background: var(--card);
+  border: 1.5px solid var(--rule);
+  border-radius: 14px;
+  margin-bottom: 1rem;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.search-bar:focus-within {
+  border-color: var(--cobalt-lt);
+  box-shadow: 0 0 0 3px rgba(28, 63, 220, 0.1);
+}
+
+.search-bar svg {
+  width: 20px;
+  height: 20px;
+  fill: var(--dust);
+  flex-shrink: 0;
+}
+
+.search-bar input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  font-family: var(--sans);
+  font-size: 0.9rem;
+  color: var(--ink);
+  outline: none;
+}
+
+.search-bar input::placeholder {
+  color: var(--dust);
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   GAMES LIST
+   ══════════════════════════════════════════════════════════════════════════ */
+
+.games-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.game-item {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 0.75rem;
+  background: var(--card);
+  border: 1.5px solid var(--rule);
+  border-radius: 14px;
+  transition: border-color 0.2s, transform 0.2s;
+}
+
+.game-item:active {
+  transform: scale(0.98);
+}
+
+.game-item img {
+  width: 56px;
+  height: 56px;
+  border-radius: 10px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.game-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.game-info h3 {
+  font-family: var(--serif);
+  font-size: 1rem;
+  font-weight: 400;
+  color: var(--ink);
+  margin-bottom: 0.15rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.game-meta {
+  font-size: 0.75rem;
+  color: var(--dust);
+  font-family: var(--mono);
+}
+
+.add-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  border: 1.5px solid var(--rule);
+  background: var(--paper);
+  color: var(--dust);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all 0.2s ease;
+}
+
+.add-btn svg {
+  width: 20px;
+  height: 20px;
+  fill: currentColor;
+}
+
+.add-btn:hover {
+  border-color: var(--cobalt);
+  color: var(--cobalt);
+}
+
+.add-btn.added {
+  background: var(--green);
+  border-color: var(--green);
+  color: #fff;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   DESKTOP ENHANCEMENT
+   ══════════════════════════════════════════════════════════════════════════ */
+
+@media (min-width: 640px) {
+  .app-container {
+    max-width: 540px;
+    margin-top: 2rem;
+    border-radius: 24px;
+    min-height: auto;
+    height: calc(100vh - 4rem);
+    box-shadow: 0 8px 32px rgba(10, 10, 15, 0.12),
+                0 0 0 1px var(--rule);
+    overflow: hidden;
+  }
+
+  .app-header {
+    padding: 2rem 1.5rem 1.25rem;
+    border-radius: 24px 24px 0 0;
+  }
+
+  .app-tabs {
+    padding: 0.75rem 1.25rem;
+  }
+
+  .app-content {
+    padding: 0.5rem 1.25rem 2rem;
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   DRAG AND DROP
+   ══════════════════════════════════════════════════════════════════════════ */
+
+.game-item.sortable {
+  touch-action: none;
+  user-select: none;
+  position: relative;
+}
+
+.drag-handle {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--dust);
+  cursor: grab;
+  flex-shrink: 0;
+  border-radius: 6px;
+  transition: color 0.2s, background 0.2s;
+}
+
+.drag-handle:hover {
+  color: var(--cobalt);
+  background: var(--cobalt-dim);
+}
+
+.drag-handle:active {
+  cursor: grabbing;
+}
+
+.rank-badge {
+  width: 28px;
+  height: 28px;
+  background: var(--cobalt);
+  color: #fff;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--mono);
+  font-size: 0.85rem;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.game-item.dragging {
+  box-shadow: 0 8px 24px rgba(10, 10, 15, 0.2);
+  border-color: var(--cobalt);
+  z-index: 10;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   HOST CONTROLS
+   ══════════════════════════════════════════════════════════════════════════ */
+
+.host-controls {
+  display: flex;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  background: var(--amber-dim);
+  border-bottom: 1px solid var(--rule);
+  align-items: center;
+}
+
+.host-controls .btn-primary {
+  flex: 1;
+  padding: 0.75rem 1rem;
+  background: var(--cobalt);
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  font-family: var(--sans);
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.1s;
+}
+
+.host-controls .btn-primary:hover {
+  background: var(--cobalt-lt);
+}
+
+.host-controls .btn-primary:active {
+  transform: scale(0.98);
+}
+
+.host-controls .btn-secondary {
+  flex: 1;
+  padding: 0.75rem 1rem;
+  background: var(--green);
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  font-family: var(--sans);
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.1s;
+}
+
+.host-controls .btn-secondary:hover {
+  filter: brightness(1.1);
+}
+
+.host-controls .btn-secondary:active {
+  transform: scale(0.98);
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   GAME RESULT FORM
+   ══════════════════════════════════════════════════════════════════════════ */
+
+.game-result-form {
+  background: var(--card);
+  border: 1.5px solid var(--rule);
+  border-radius: 14px;
+  padding: 1.25rem;
+}
+
+.game-result-form h3 {
+  font-family: var(--serif);
+  font-size: 1.1rem;
+  color: var(--ink);
+  margin-bottom: 1rem;
+}
+
+.game-result-form select {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1.5px solid var(--rule);
+  border-radius: 10px;
+  font-family: var(--sans);
+  font-size: 0.9rem;
+  background: var(--paper);
+  color: var(--ink);
+  margin-bottom: 1rem;
+  cursor: pointer;
+  transition: border-color 0.2s;
+}
+
+.game-result-form select:focus {
+  outline: none;
+  border-color: var(--cobalt);
+}
+
+.game-result-form .toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 1rem;
+  cursor: pointer;
+  font-size: 0.9rem;
+  color: var(--ink);
+}
+
+.game-result-form .toggle input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--cobalt);
+}
+
+.coop-result {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.coop-result button {
+  flex: 1;
+  padding: 0.75rem;
+  border: 1.5px solid var(--rule);
+  background: var(--paper);
+  border-radius: 10px;
+  font-family: var(--sans);
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--ink);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.coop-result button:hover {
+  border-color: var(--cobalt);
+}
+
+.coop-result button.selected {
+  background: var(--green);
+  border-color: var(--green);
+  color: #fff;
+}
+
+.players-list {
+  margin-bottom: 1rem;
+}
+
+.players-list h4 {
+  font-family: var(--sans);
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--dust);
+  margin-bottom: 0.6rem;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.player-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.player-row input[type="text"] {
+  flex: 1;
+  padding: 0.6rem 0.75rem;
+  border: 1.5px solid var(--rule);
+  border-radius: 8px;
+  font-family: var(--sans);
+  font-size: 0.85rem;
+  background: var(--paper);
+  color: var(--ink);
+  transition: border-color 0.2s;
+}
+
+.player-row input[type="text"]:focus {
+  outline: none;
+  border-color: var(--cobalt);
+}
+
+.player-row label {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.8rem;
+  color: var(--dust);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.player-row label input {
+  accent-color: var(--amber);
+}
+
+.player-row .remove-btn {
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: var(--cream);
+  color: var(--dust);
+  border-radius: 6px;
+  font-size: 1.1rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.player-row .remove-btn:hover {
+  background: #fee2e2;
+  color: #ef4444;
+}
+
+.add-player-btn {
+  width: 100%;
+  padding: 0.5rem;
+  border: 1.5px dashed var(--rule);
+  background: transparent;
+  border-radius: 8px;
+  font-family: var(--sans);
+  font-size: 0.85rem;
+  color: var(--dust);
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-top: 0.25rem;
+}
+
+.add-player-btn:hover {
+  border-color: var(--cobalt);
+  color: var(--cobalt);
+  background: var(--cobalt-dim);
+}
+
+.game-result-form .btn-primary {
+  width: 100%;
+  padding: 0.85rem;
+  background: var(--cobalt);
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  font-family: var(--sans);
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.1s;
+}
+
+.game-result-form .btn-primary:hover:not(:disabled) {
+  background: var(--cobalt-lt);
+}
+
+.game-result-form .btn-primary:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.game-result-form .btn-primary:disabled {
+  background: var(--dust);
+  cursor: not-allowed;
 }

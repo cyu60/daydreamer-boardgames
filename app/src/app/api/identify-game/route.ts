@@ -16,9 +16,7 @@ const BROWSER_USE_PROFILE_ID = process.env.BROWSER_USE_PROFILE_ID;
 interface BrowserUseTask {
   id: string;
   status: string;
-  output?: {
-    final_result?: string;
-  };
+  output?: string | null;  // v2 API returns output directly as string
 }
 
 // Helper to update task status
@@ -98,11 +96,11 @@ async function scrapeBGG(gameName: string): Promise<{
     throw new Error('BROWSER_USE_API_KEY not configured');
   }
 
-  // Create browser-use task
-  const createResponse = await fetch('https://api.browser-use.com/api/v1/run-task', {
+  // Create browser-use task (v2 API)
+  const createResponse = await fetch('https://api.browser-use.com/api/v2/tasks', {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${BROWSER_USE_API_KEY}`,
+      'X-Browser-Use-API-Key': BROWSER_USE_API_KEY,
       'Content-Type': 'application/json'
     },
     body: JSON.stringify({
@@ -136,9 +134,9 @@ Return ONLY the JSON object, no other text.`,
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     await new Promise(resolve => setTimeout(resolve, pollInterval));
 
-    const statusResponse = await fetch(`https://api.browser-use.com/api/v1/task/${taskId}`, {
+    const statusResponse = await fetch(`https://api.browser-use.com/api/v2/tasks/${taskId}`, {
       headers: {
-        'Authorization': `Bearer ${BROWSER_USE_API_KEY}`
+        'X-Browser-Use-API-Key': BROWSER_USE_API_KEY
       }
     });
 
@@ -148,10 +146,14 @@ Return ONLY the JSON object, no other text.`,
 
     const status = await statusResponse.json() as BrowserUseTask;
 
-    if (status.status === 'finished' && status.output?.final_result) {
+    if (status.status === 'finished' && status.output) {
       try {
-        // Parse the result - it should be JSON
-        const result = status.output.final_result;
+        // Parse the result - it should be JSON (v2 API returns output directly)
+        // Handle escaped JSON strings (e.g., {\"key\": \"value\"})
+        let result = status.output;
+        if (result.includes('\\"')) {
+          result = result.replace(/\\"/g, '"');
+        }
         const jsonMatch = result.match(/\{[\s\S]*\}/);
         if (jsonMatch) {
           const parsed = JSON.parse(jsonMatch[0]);

@@ -44,3 +44,12 @@ boardgames-scraper/data/*.json
 # Reference files (not part of codebase)
 daydreamers-slides*.html
 .vercel
+
+# Test files and images
+tests/
+app/test-*.ts
+IMG_*.jpeg
+IMG_*.jpg
+IMG_*.png
+*.test.ts
+*.test.js

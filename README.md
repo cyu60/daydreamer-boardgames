@@ -32,10 +32,13 @@ Built for the DayDreamers workshop crew who got tired of the "what should we pla
 ## Features
 
 - **Game Collection** - Browse your board games with search, images, and details
+- **Photo-to-Game** - Snap a photo of a game box to auto-add it (AI-powered)
 - **Tonight's Picks** - Pin games and vote on what to play with drag-and-drop ranking
 - **Session Management** - Host controls to start/end game nights
 - **Play Logging** - Track games played, players, and winners (including co-op support)
 - **Shareable Links** - Friends can join and vote without accounts
+
+![App Screenshot](app-screenshot.png)
 
 ## Tech Stack
 

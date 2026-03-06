@@ -169,13 +169,13 @@ export default function SessionPage() {
   const [players, setPlayers] = useState<PlayerInput[]>([{ name: '', isWinner: false }]);
   const [savingResult, setSavingResult] = useState(false);
 
-  // Configure DnD sensors
+  // Configure DnD sensors with more responsive settings
   const sensors = useSensors(
     useSensor(PointerSensor, {
-      activationConstraint: { distance: 8 },
+      activationConstraint: { distance: 5 },
     }),
     useSensor(TouchSensor, {
-      activationConstraint: { delay: 200, tolerance: 5 },
+      activationConstraint: { delay: 100, tolerance: 8 },
     }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,

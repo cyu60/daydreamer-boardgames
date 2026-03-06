@@ -350,6 +350,10 @@ html, body {
   flex-shrink: 0;
   border-radius: 6px;
   transition: color 0.2s, background 0.2s;
+  touch-action: none;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 .drag-handle:hover {

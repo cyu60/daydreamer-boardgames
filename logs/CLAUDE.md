@@ -328,6 +328,212 @@ Converted `frontend/` reference design to React components:
 
 ---
 
+## Session 6 - Deployment & UI Fixes
+
+### Scraper Test Run (3 Games)
+- Created smaller test file with 3 games (Catan, Dominion, Wingspan)
+- Scraper successfully scraped data but JSON parsing failed on escaped quotes
+- Manually saved cleaned JSON to `data/games_output.json`
+
+### Supabase Setup
+- Created new project "daydreamer-boardgames" (ref: zqbpgckvkocqzlmkjymy)
+- Initial IPv6 connection issues
+- Fixed with `--dns-resolver https` flag
+- Pushed migration and seed data via Supabase CLI:
+  ```bash
+  npx supabase db push --dns-resolver https
+  npx supabase db reset --dns-resolver https
+  ```
+
+### Vercel Deployment
+- Updated to new Vercel CLI with OAuth 2.0 Device Flow login
+- Fixed build error: `supabaseUrl is required`
+  - Modified `supabase.ts` to return null when env vars missing
+  - Added null check in `page.tsx` useEffect
+- Added env vars to Vercel project
+- Deployed successfully to https://daydreamer-boardgames.vercel.app
+- Added homepage URL to GitHub repo
+
+### UI Fixes
+**Problem:** Header was broken - moon logo cut off, "DayDreamers" text truncated
+
+**Solution:**
+1. Fixed MoonLogo component with `shrink-0` and fixed dimensions `w-[48px] h-[48px]`
+2. Removed `overflow-hidden` from header (moved to glow div only)
+3. Made header responsive:
+   - Mobile: Stack logo and text vertically, smaller text
+   - Desktop: Horizontal layout with larger text
+4. Improved container widths for desktop: `sm:max-w-[540px] md:max-w-[600px] lg:max-w-[640px]`
+
+**Header Code:**
+```tsx
+<header className="px-4 pt-6 pb-4 text-center bg-[var(--ink)] relative sm:px-5 sm:pt-8 sm:pb-5 sm:rounded-t-3xl">
+  <div className="header-glow absolute inset-0 pointer-events-none overflow-hidden" />
+  <div className="relative z-10 flex flex-col items-center gap-2 sm:flex-row sm:justify-center sm:gap-3">
+    <MoonLogo />
+    <h1 className="text-lg text-white leading-tight sm:text-[1.35rem]" style={{ fontFamily: 'var(--serif)', margin: 0 }}>
+      Day<em className="italic text-[var(--cobalt-lt)]">Dreamers</em>
+      <span className="block text-sm opacity-80 sm:inline sm:text-[1.35rem] sm:opacity-100"> Board Games</span>
+    </h1>
+  </div>
+</header>
+```
+
+### Responsive Design Approach
+- Mobile-first design (full width on small screens)
+- Centered card layout on tablet/desktop with shadow
+- Breakpoints: `sm:540px`, `md:600px`, `lg:640px`
+
+### Live URLs
+- Production: https://daydreamer-boardgames.vercel.app
+- GitHub: https://github.com/cyu60/daydreamer-boardgames
+
+---
+
+## Session 7 - Voting Persistence & UI Improvements
+
+### Features Added
+- **Vote Persistence**: Votes now save to Supabase (one vote per person per game)
+- **Tonight's Picks Persistence**: Selected games persist across sessions
+- **Game Details Modal**: Click on game to see details, embedded YouTube tutorial
+- **YouTube Embed**: Tutorial videos display directly in modal
+
+### Database Changes
+- Created `votes` table migration (`002_add_votes.sql`)
+- Added Vote type to database types
+
+### Files Modified
+- `app/src/app/globals.css` - Complete CSS rewrite matching reference design
+- `app/src/app/page.tsx` - Added modals, voting UI, Supabase persistence
+- `app/src/types/database.ts` - Added Vote type
+- `app/supabase/migrations/002_add_votes.sql`
+
+---
+
+## Session 9 - Shareable Sessions Feature
+
+### User Request
+> "I want to create a game session, select games from my collection, generate a shareable link with a unique slug, send it to friends who can vote on games they want to play using drag-and-drop ranking, then start the session, play games, and log winners to build up a database over time."
+
+### Features Implemented
+
+**Database Schema (003_add_sessions.sql):**
+- `sessions` table - id, slug (unique 8-char), name, host_name, status (voting/playing/completed), timestamps
+- `session_games` table - links games to sessions
+- `session_votes` table - votes within a session (session_id, game_id, voter_name, rank)
+- `game_results` table - games played in a session
+- `player_results` table - individual player results with ranks/scores/winner flag
+
+**New Route:**
+- `/session/[slug]` - Shareable session page where friends can see games and vote
+
+**Main Page Updates:**
+- "Create Shareable Session" button in Tonight tab
+- Modal to enter host name and optional session name
+- Uses nanoid for unique 8-character slugs
+- Redirects to `/session/[slug]` after creation
+- Shows list of recent sessions with status badges
+
+**Session Page Features:**
+- Shows session info (name, host, status badge)
+- Voting mode: enter name, vote for games, see vote counts and who voted
+- Playing mode: shows "in progress" message
+- Completed mode: shows game results with winners
+
+### Files Created/Modified
+- `app/supabase/migrations/003_add_sessions.sql` - New tables
+- `app/src/types/database.ts` - Added Session, SessionGame, SessionVote, GameResult, PlayerResult types
+- `app/src/app/session/[slug]/page.tsx` - New shareable session page
+- `app/src/app/page.tsx` - Added session creation UI and modal
+
+### Packages Added
+- `nanoid` - for generating unique session slugs
+
+### URL Structure
+| Route | Description |
+|-------|-------------|
+| `/` | Main app with collection, tonight's picks, history |
+| `/session/[slug]` | Shareable session page for voting |
+
+### Next Steps (Not Yet Implemented)
+- Drag-and-drop ranking (using @dnd-kit)
+- Host controls to start session and log game results
+- Real-time updates with Supabase Realtime
+- Player leaderboards and statistics
+
+---
+
+## Session 10 - Photo-to-Game Feature Planning
+
+### User Request
+> "I want to have a feature where I can add in an additional game where basically I can take a photo of a game and folks would be able to kind of parse it with AI and then browser-use to then kind of understand it, run all that stuff in the back end before then actually adding that to our database as well."
+
+### Technical Decisions Made
+1. **Vision API**: OpenAI GPT-5.4 (latest model, released March 2026)
+   - Supports 10M+ pixel images without compression
+   - 75% OSWorld score (better than human testers)
+2. **Processing**: Async with status polling (scraping takes 30-60+ seconds)
+3. **Error Handling**: Fallback to manual entry if recognition fails
+
+### Architecture Overview
+```
+Photo Upload → OpenAI GPT-4V → browser-use scrape BGG → Add to DB
+     ↓              ↓                    ↓               ↓
+  Supabase      Identify            Scrape game       Store
+  Storage       game name           details           in games table
+```
+
+### New Database Table
+```sql
+CREATE TABLE game_tasks (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'identifying', 'scraping', 'complete', 'error')),
+  image_url TEXT NOT NULL,
+  identified_name TEXT,
+  confidence REAL,
+  bgg_url TEXT,
+  game_id UUID REFERENCES games(id),
+  error_message TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  completed_at TIMESTAMPTZ
+);
+```
+
+### New API Endpoints
+- `POST /api/identify-game` - Start identification process, returns taskId
+- `GET /api/game-task/[taskId]` - Poll for task status and result
+
+### Implementation Phases
+1. Database & Storage setup (game_tasks table, Supabase Storage bucket)
+2. Image upload UI (camera/file upload in "My Games" tab)
+3. OpenAI Vision integration (GPT-4V for game identification)
+4. browser-use integration (scrape BGG for game details)
+5. Frontend polling & result UI
+6. Manual entry fallback
+
+### New Environment Variables
+```env
+OPENAI_API_KEY=...           # For GPT-4V image recognition
+BROWSER_USE_API_KEY=...      # Already have this from scraper
+BROWSER_USE_PROFILE_ID=...   # Optional
+```
+
+### PRD Created
+Full PRD document created at `docs/PRD-photo-to-game.md` with:
+- User flow diagrams
+- Technical architecture
+- API specifications
+- UI mockups
+- Error handling matrix
+- Success metrics
+
+### Next Steps
+- Implement Phase 1: Create migration, set up storage bucket
+- Implement Phase 2: Add camera/upload UI
+- Continue through remaining phases
+
+---
+
 ## How to Use This Log
 Every conversation with Claude about this project should be logged here. When giving instructions, tell Claude to update this file with:
 - Decisions made

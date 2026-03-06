@@ -139,6 +139,194 @@ export interface Database {
           pinned_at?: string
         }
       }
+      votes: {
+        Row: {
+          id: string
+          game_id: string
+          voter_name: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          game_id: string
+          voter_name: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          game_id?: string
+          voter_name?: string
+          created_at?: string
+        }
+      }
+      sessions: {
+        Row: {
+          id: string
+          slug: string
+          name: string | null
+          host_name: string
+          status: 'voting' | 'playing' | 'completed'
+          created_at: string
+          started_at: string | null
+          completed_at: string | null
+        }
+        Insert: {
+          id?: string
+          slug: string
+          name?: string | null
+          host_name: string
+          status?: 'voting' | 'playing' | 'completed'
+          created_at?: string
+          started_at?: string | null
+          completed_at?: string | null
+        }
+        Update: {
+          id?: string
+          slug?: string
+          name?: string | null
+          host_name?: string
+          status?: 'voting' | 'playing' | 'completed'
+          created_at?: string
+          started_at?: string | null
+          completed_at?: string | null
+        }
+      }
+      session_games: {
+        Row: {
+          id: string
+          session_id: string
+          game_id: string
+          added_at: string
+        }
+        Insert: {
+          id?: string
+          session_id: string
+          game_id: string
+          added_at?: string
+        }
+        Update: {
+          id?: string
+          session_id?: string
+          game_id?: string
+          added_at?: string
+        }
+      }
+      session_votes: {
+        Row: {
+          id: string
+          session_id: string
+          game_id: string
+          voter_name: string
+          rank: number | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          session_id: string
+          game_id: string
+          voter_name: string
+          rank?: number | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          session_id?: string
+          game_id?: string
+          voter_name?: string
+          rank?: number | null
+          created_at?: string
+        }
+      }
+      game_results: {
+        Row: {
+          id: string
+          session_id: string
+          game_id: string
+          played_at: string
+          is_coop: boolean
+          coop_won: boolean | null
+        }
+        Insert: {
+          id?: string
+          session_id: string
+          game_id: string
+          played_at?: string
+          is_coop?: boolean
+          coop_won?: boolean | null
+        }
+        Update: {
+          id?: string
+          session_id?: string
+          game_id?: string
+          played_at?: string
+          is_coop?: boolean
+          coop_won?: boolean | null
+        }
+      }
+      player_results: {
+        Row: {
+          id: string
+          game_result_id: string
+          player_name: string
+          rank: number | null
+          score: number | null
+          is_winner: boolean
+        }
+        Insert: {
+          id?: string
+          game_result_id: string
+          player_name: string
+          rank?: number | null
+          score?: number | null
+          is_winner?: boolean
+        }
+        Update: {
+          id?: string
+          game_result_id?: string
+          player_name?: string
+          rank?: number | null
+          score?: number | null
+          is_winner?: boolean
+        }
+      }
+      game_tasks: {
+        Row: {
+          id: string
+          status: 'pending' | 'identifying' | 'scraping' | 'complete' | 'error'
+          image_url: string
+          identified_name: string | null
+          confidence: number | null
+          bgg_url: string | null
+          game_id: string | null
+          error_message: string | null
+          created_at: string
+          completed_at: string | null
+        }
+        Insert: {
+          id?: string
+          status?: 'pending' | 'identifying' | 'scraping' | 'complete' | 'error'
+          image_url: string
+          identified_name?: string | null
+          confidence?: number | null
+          bgg_url?: string | null
+          game_id?: string | null
+          error_message?: string | null
+          created_at?: string
+          completed_at?: string | null
+        }
+        Update: {
+          id?: string
+          status?: 'pending' | 'identifying' | 'scraping' | 'complete' | 'error'
+          image_url?: string
+          identified_name?: string | null
+          confidence?: number | null
+          bgg_url?: string | null
+          game_id?: string | null
+          error_message?: string | null
+          created_at?: string
+          completed_at?: string | null
+        }
+      }
     }
     Views: {
       [_ in never]: never
@@ -158,3 +346,10 @@ export type PlaySession = Database['public']['Tables']['play_sessions']['Row']
 export type Player = Database['public']['Tables']['players']['Row']
 export type PlayerSession = Database['public']['Tables']['player_sessions']['Row']
 export type TonightsPick = Database['public']['Tables']['tonights_picks']['Row']
+export type Vote = Database['public']['Tables']['votes']['Row']
+export type Session = Database['public']['Tables']['sessions']['Row']
+export type SessionGame = Database['public']['Tables']['session_games']['Row']
+export type SessionVote = Database['public']['Tables']['session_votes']['Row']
+export type GameResult = Database['public']['Tables']['game_results']['Row']
+export type PlayerResult = Database['public']['Tables']['player_results']['Row']
+export type GameTask = Database['public']['Tables']['game_tasks']['Row']

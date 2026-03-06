@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { nanoid } from 'nanoid';
 import { supabase } from '@/lib/supabase';
-import { Game, PlaySession, Vote, TonightsPick, Session } from '@/types/database';
+import { Game, PlaySession, Vote, TonightsPick, Session, GameTask } from '@/types/database';
 
 type Tab = 'collection' | 'session' | 'history';
 
@@ -68,6 +68,33 @@ function CloseIcon() {
   return (
     <svg viewBox="0 0 24 24" style={{ width: '18px', height: '18px' }}>
       <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+    </svg>
+  );
+}
+
+// Camera Icon
+function CameraIcon() {
+  return (
+    <svg viewBox="0 0 24 24" style={{ width: '24px', height: '24px', fill: 'currentColor' }}>
+      <path d="M12 15.2c1.77 0 3.2-1.43 3.2-3.2s-1.43-3.2-3.2-3.2-3.2 1.43-3.2 3.2 1.43 3.2 3.2 3.2zM9 2L7.17 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2h-3.17L15 2H9zm3 15c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5z"/>
+    </svg>
+  );
+}
+
+// Upload Icon
+function UploadIcon() {
+  return (
+    <svg viewBox="0 0 24 24" style={{ width: '24px', height: '24px', fill: 'currentColor' }}>
+      <path d="M9 16h6v-6h4l-7-7-7 7h4v6zm-4 2h14v2H5v-2z"/>
+    </svg>
+  );
+}
+
+// Spinner Icon
+function SpinnerIcon() {
+  return (
+    <svg viewBox="0 0 24 24" style={{ width: '20px', height: '20px', animation: 'spin 1s linear infinite' }}>
+      <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" fill="none" strokeDasharray="31.4 31.4" strokeLinecap="round"/>
     </svg>
   );
 }
@@ -347,6 +374,12 @@ export default function Home() {
   const [sessionName, setSessionName] = useState('');
   const [creating, setCreating] = useState(false);
 
+  // Add Game modal state
+  const [showAddGame, setShowAddGame] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [currentTask, setCurrentTask] = useState<GameTask | null>(null);
+  const [taskPollingId, setTaskPollingId] = useState<string | null>(null);
+
   // Fetch games, votes, and tonight's picks from Supabase
   useEffect(() => {
     async function fetchData() {
@@ -587,6 +620,124 @@ export default function Home() {
     }
   }, [hostName, sessionName, selectedGameIds, router]);
 
+  // Handle image upload for game identification
+  const handleImageUpload = useCallback(async (file: File) => {
+    if (!supabase) return;
+
+    setUploadingImage(true);
+    setShowAddGame(false);
+
+    try {
+      // Generate unique filename
+      const ext = file.name.split('.').pop() || 'jpg';
+      const filename = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+      const filePath = `uploads/${filename}`;
+
+      // Upload to Supabase Storage
+      const { error: uploadError } = await supabase.storage
+        .from('game-photos')
+        .upload(filePath, file, {
+          contentType: file.type,
+          upsert: false
+        });
+
+      if (uploadError) {
+        console.error('Upload error:', uploadError);
+        alert('Failed to upload image. Please try again.');
+        setUploadingImage(false);
+        return;
+      }
+
+      // Get public URL
+      const { data: urlData } = supabase.storage
+        .from('game-photos')
+        .getPublicUrl(filePath);
+
+      const imageUrl = urlData.publicUrl;
+
+      // Create game task record
+      const { data: taskData, error: taskError } = await supabase
+        .from('game_tasks')
+        .insert({
+          image_url: imageUrl,
+          status: 'pending'
+        } as any)
+        .select()
+        .single() as { data: GameTask | null; error: Error | null };
+
+      if (taskError || !taskData) {
+        console.error('Task creation error:', taskError);
+        alert('Failed to create task. Please try again.');
+        setUploadingImage(false);
+        return;
+      }
+
+      setCurrentTask(taskData);
+      setTaskPollingId(taskData.id);
+
+      // Trigger the identification API
+      fetch('/api/identify-game', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ taskId: taskData.id })
+      }).catch(err => console.error('API trigger error:', err));
+
+      setUploadingImage(false);
+    } catch (err) {
+      console.error('Error:', err);
+      alert('Something went wrong. Please try again.');
+      setUploadingImage(false);
+    }
+  }, []);
+
+  // Poll for task status updates
+  useEffect(() => {
+    if (!taskPollingId || !supabase) return;
+
+    const pollSupabase = supabase; // Capture for closure
+
+    const interval = setInterval(async () => {
+      const { data, error } = await pollSupabase
+        .from('game_tasks')
+        .select('*')
+        .eq('id', taskPollingId)
+        .single() as { data: GameTask | null; error: Error | null };
+
+      if (error || !data) {
+        console.error('Polling error:', error);
+        return;
+      }
+
+      setCurrentTask(data);
+
+      // Stop polling when task is complete or errored
+      if (data.status === 'complete' || data.status === 'error') {
+        setTaskPollingId(null);
+
+        // If complete, refresh games list
+        if (data.status === 'complete' && data.game_id) {
+          const { data: gamesData } = await pollSupabase
+            .from('games')
+            .select('*')
+            .order('name');
+          if (gamesData) {
+            setGames(gamesData);
+          }
+        }
+      }
+    }, 2000); // Poll every 2 seconds
+
+    return () => clearInterval(interval);
+  }, [taskPollingId]);
+
+  // Handle file input change
+  const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      handleImageUpload(file);
+    }
+  }, [handleImageUpload]);
+
   const tabs: { id: Tab; label: string }[] = [
     { id: 'collection', label: 'My Games' },
     { id: 'session', label: 'Tonight' },
@@ -623,15 +774,36 @@ export default function Home() {
         {/* Collection View */}
         {activeTab === 'collection' && (
           <section>
-            {/* Search Bar */}
-            <div className="search-bar">
-              <SearchIcon />
-              <input
-                type="text"
-                placeholder="Search games..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
+            {/* Search Bar + Add Button */}
+            <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
+              <div className="search-bar" style={{ flex: 1, marginBottom: 0 }}>
+                <SearchIcon />
+                <input
+                  type="text"
+                  placeholder="Search games..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </div>
+              <button
+                onClick={() => setShowAddGame(true)}
+                style={{
+                  width: '48px',
+                  height: '48px',
+                  borderRadius: '14px',
+                  border: 'none',
+                  background: 'var(--cobalt)',
+                  color: '#fff',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0
+                }}
+                title="Add game from photo"
+              >
+                <CameraIcon />
+              </button>
             </div>
 
             {/* Games List */}
@@ -947,6 +1119,215 @@ export default function Home() {
           </div>
         </div>
       )}
+
+      {/* Add Game Modal */}
+      {showAddGame && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(10, 10, 15, 0.7)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 100,
+            padding: '1rem'
+          }}
+          onClick={() => setShowAddGame(false)}
+        >
+          <div
+            style={{
+              background: 'var(--card)',
+              borderRadius: '20px',
+              maxWidth: '400px',
+              width: '100%',
+              padding: '1.5rem'
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.25rem' }}>
+              <h2 style={{ fontFamily: 'var(--serif)', fontSize: '1.3rem', color: 'var(--ink)' }}>
+                Add <em style={{ fontStyle: 'italic', color: 'var(--cobalt)' }}>Game</em>
+              </h2>
+              <button
+                onClick={() => setShowAddGame(false)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  padding: '0.25rem',
+                  color: 'var(--dust)'
+                }}
+              >
+                <CloseIcon />
+              </button>
+            </div>
+
+            <p style={{ fontSize: '0.9rem', color: 'var(--dust)', marginBottom: '1.25rem' }}>
+              Take a photo of a board game box and we&apos;ll identify it and add it to your collection!
+            </p>
+
+            {/* Camera/Upload Options */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              {/* Camera Button (mobile) */}
+              <label style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '0.75rem',
+                padding: '1rem',
+                background: 'var(--cobalt)',
+                color: '#fff',
+                border: 'none',
+                borderRadius: '12px',
+                fontWeight: 600,
+                fontSize: '0.95rem',
+                cursor: 'pointer'
+              }}>
+                <CameraIcon />
+                Take Photo
+                <input
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  onChange={handleFileSelect}
+                  style={{ display: 'none' }}
+                />
+              </label>
+
+              {/* File Upload Button */}
+              <label style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '0.75rem',
+                padding: '1rem',
+                background: 'var(--cream)',
+                color: 'var(--ink)',
+                border: '1.5px solid var(--rule)',
+                borderRadius: '12px',
+                fontWeight: 600,
+                fontSize: '0.95rem',
+                cursor: 'pointer'
+              }}>
+                <UploadIcon />
+                Upload Image
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/heic"
+                  onChange={handleFileSelect}
+                  style={{ display: 'none' }}
+                />
+              </label>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Task Progress Indicator */}
+      {(uploadingImage || currentTask) && (
+        <div style={{
+          position: 'fixed',
+          bottom: '1.5rem',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          background: 'var(--card)',
+          borderRadius: '16px',
+          padding: '1rem 1.5rem',
+          boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '1rem',
+          zIndex: 101,
+          maxWidth: 'calc(100% - 2rem)'
+        }}>
+          {uploadingImage ? (
+            <>
+              <SpinnerIcon />
+              <span style={{ fontSize: '0.9rem', color: 'var(--ink)' }}>Uploading image...</span>
+            </>
+          ) : currentTask && (
+            <>
+              {currentTask.status === 'error' ? (
+                <>
+                  <span style={{ color: 'var(--red)', fontSize: '1.25rem' }}>✕</span>
+                  <div>
+                    <div style={{ fontSize: '0.9rem', color: 'var(--ink)', fontWeight: 500 }}>
+                      Identification Failed
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--dust)' }}>
+                      {currentTask.error_message || 'Unknown error'}
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setCurrentTask(null)}
+                    style={{
+                      padding: '0.5rem 1rem',
+                      background: 'var(--cream)',
+                      border: 'none',
+                      borderRadius: '8px',
+                      fontSize: '0.8rem',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Dismiss
+                  </button>
+                </>
+              ) : currentTask.status === 'complete' ? (
+                <>
+                  <span style={{ color: 'var(--green)', fontSize: '1.25rem' }}>✓</span>
+                  <div>
+                    <div style={{ fontSize: '0.9rem', color: 'var(--ink)', fontWeight: 500 }}>
+                      Game Added!
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--cobalt)' }}>
+                      {currentTask.identified_name}
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setCurrentTask(null)}
+                    style={{
+                      padding: '0.5rem 1rem',
+                      background: 'var(--cobalt)',
+                      color: '#fff',
+                      border: 'none',
+                      borderRadius: '8px',
+                      fontSize: '0.8rem',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Done
+                  </button>
+                </>
+              ) : (
+                <>
+                  <SpinnerIcon />
+                  <div>
+                    <div style={{ fontSize: '0.9rem', color: 'var(--ink)', fontWeight: 500 }}>
+                      {currentTask.status === 'identifying' && 'Identifying game...'}
+                      {currentTask.status === 'scraping' && 'Fetching game details...'}
+                      {currentTask.status === 'pending' && 'Processing...'}
+                    </div>
+                    {currentTask.identified_name && (
+                      <div style={{ fontSize: '0.75rem', color: 'var(--cobalt)' }}>
+                        Found: {currentTask.identified_name}
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
+            </>
+          )}
+        </div>
+      )}
+
+      {/* Spinner animation */}
+      <style jsx global>{`
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+      `}</style>
     </div>
   );
 }

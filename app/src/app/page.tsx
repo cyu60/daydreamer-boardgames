@@ -204,6 +204,12 @@ export default function Home() {
   // Fetch games from Supabase
   useEffect(() => {
     async function fetchGames() {
+      if (!supabase) {
+        console.warn('Supabase not configured');
+        setLoading(false);
+        return;
+      }
+
       const { data, error } = await supabase
         .from('games')
         .select('*')

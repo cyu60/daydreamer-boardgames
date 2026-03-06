@@ -38,5 +38,8 @@ logs/*.log
 boardgames-scraper/boardgames-scraper
 boardgames-scraper/scraper
 
+# Scraped data files
+boardgames-scraper/data/*.json
+
 # Reference files (not part of codebase)
 daydreamers-slides*.html
